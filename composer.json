@@ -1,0 +1,5 @@
+{
+    "name": "iqual/easyjob_api",
+    "description": "Provides integration with the easyjob api",
+    "type": "drupal-custom-module"
+}

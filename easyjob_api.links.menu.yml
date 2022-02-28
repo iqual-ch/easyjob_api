@@ -1,0 +1,5 @@
+easyjob_api.settings:
+  title: 'Easyjob API settings'
+  parent: system.admin_config_services
+  description: 'Configure credentials and basic settings for Easyjob api.'
+  route_name: easyjob_api.settings

@@ -1,0 +1,4 @@
+services:
+  easyjob_api:
+    class: Drupal\easyjob_api\EasyjobApiService
+    arguments: ['@entity_type.manager', '@config.factory', '@request_stack']

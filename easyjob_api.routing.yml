@@ -1,0 +1,9 @@
+easyjob_api.settings:
+  path: '/admin/config/services/easyjob-api'
+  defaults:
+    _form: 'Drupal\easyjob_api\Form\EasyjobApiSettingsForm'
+    _title: 'Easyjob API settings'
+  options:
+    _admin_route: TRUE
+  requirements:
+    _permission: 'administer easyjob api'
