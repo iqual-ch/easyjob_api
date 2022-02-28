@@ -49,6 +49,12 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
   protected $auth;
 
   /**
+   * @var string
+   *   API Token
+   */
+  protected $token;
+
+  /**
    * bw2ApiService constructor.
    *
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
@@ -65,6 +71,8 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
 
     $this->auth = [
       'baseUrl' => $this->config->get('base_url'),
+      'user' => $this->config->get('user'),
+      'password' => $this->config->get('password'),
     ];
   }
 
@@ -78,8 +86,45 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
   /**
    * {@inheritdoc}
    */
-  public function getAllProductsMatchingParameters($params = []) {
+  public function getToken() {
+    return ($this->token) ? $this->token : $this->generateToken();
+  }
+
+  public function generateToken() {
     if (empty($this->auth)) {
+      throw new \Exception("Easyjob API not authorized.");
+    }
+    $request_url = $this->getRequestUrl('getToken');
+    $response = \Drupal::httpClient()->post($request_url, [
+      'headers' => [
+        'Content-type' => 'application/json',
+        'requesttype' => 'string',
+      ],
+      'body' => [
+        'grant_type' => 'password',
+        'username' => $this->getCredentials()['user'],
+        'password' => $this->getCredentials()['password'],
+      ],
+    ]);
+
+    if ($response->getStatusCode() == '200' ) {
+      //get token, hydrate service
+
+      /* $msg = 'token retrieved from easyjob, connecting...';
+      \Drupal::logger('easyjob_api')->notice($msg);
+      $data = json_decode($response->getBody(), true);
+      $result = json_decode($data, true);
+      $this->token = $result->token;
+      return $result; */
+    }
+    return FALSE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getAllProductsMatchingParameters($params = []) {
+    if (empty($this->getToken())) {
       throw new \Exception("Easyjob API not authorized.");
     }
 
@@ -89,7 +134,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
       'headers' => [
         'Content-type' => 'application/json',
         'requesttype' => 'string',
-      ]
+      ],
     ]);
 
     if ($response->getStatusCode() == '200' ) {
@@ -107,6 +152,9 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
    */
   protected function getRequestUrl($requestOperation, $extra_param = false) {
     $url = $this->auth['baseUrl'];
+    if ($requestOperation == 'getToken') {
+      $url .= '/token/';
+    }
     if ($requestOperation == 'getProducts') {
     }
     

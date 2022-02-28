@@ -40,6 +40,14 @@ interface EasyjobApiServiceInterface {
    *
    * @return mixed
    */
+  public function createCustomer($data);
+
+  /**
+   * 
+   * @param array $data
+   *
+   * @return mixed
+   */
   public function createOrder($data);
-  
+
 }
