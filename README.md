@@ -1,4 +1,4 @@
-# bw2 API
+# Easyjob API
 
 Adds integration for the Easyjob.
 
