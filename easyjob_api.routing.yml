@@ -7,3 +7,11 @@ easyjob_api.settings:
     _admin_route: TRUE
   requirements:
     _permission: 'administer easyjob api'
+easyjob_api.test_websettings:
+  path: '/easyjob-api/test/websettings'
+  defaults:
+    _controller: '\Drupal\easyjob_api\Controller\TestController::getWebSettings'
+    _title: 'Easyjob API Websettings'
+  methods:  [GET]
+  requirements:
+    _permission: 'administer easyjob api'
