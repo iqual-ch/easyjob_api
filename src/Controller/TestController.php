@@ -3,6 +3,8 @@
 namespace Drupal\easyjob_api\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
+use Drupal\easyjob_api\Service\EasyjobApiService;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 /**
@@ -15,6 +17,12 @@ class TestController extends ControllerBase {
   public function __construct(EasyjobApiService $easyjob)
   {
     $this->easyjob = $easyjob;
+  }
+
+  public static function create(ContainerInterface $container)
+  {
+      $easyjob = $container->get('easyjob_api');
+      return new static($easyjob);
   }
 
   /**
