@@ -13,6 +13,10 @@ use Symfony\Component\HttpFoundation\RequestStack;
  */
 class EasyjobApiService implements EasyjobApiServiceInterface {
 
+  const TOKEN_ENDPOINT = '/token/';
+
+  const WEBSETTINGS_ENDPOINT = '/api.json/Common/GetWebSettings/';
+
   const PRODUCTS_ENDPOINT = '/Items/List/';
 
   const AVAILABILITY_ENDPOINT = '/Items/Avail/';
@@ -68,11 +72,16 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
     $this->entityTypeManager = $entity_type_manager;
     $this->request = $request_stack->getCurrentRequest();
     $this->config = $config_factory->get('easyjob_api.settings');
-
     $this->auth = [
       'baseUrl' => $this->config->get('base_url'),
       'user' => $this->config->get('user'),
       'password' => $this->config->get('password'),
+    ];
+
+    $this->token =  $this->generateToken();
+    $this->headers = [
+      'Authorization' => 'Bearer ' . $token,
+      'Accept'        => 'application/json',
     ];
   }
 
@@ -83,19 +92,13 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
     return $this->auth;
   }
 
-  /**
-   * {@inheritdoc}
-   */
-  public function getToken() {
-    return ($this->token) ? $this->token : $this->generateToken();
-  }
 
   public function generateToken() {
     if (empty($this->auth)) {
       throw new \Exception("Easyjob API not authorized.");
     }
     $request_url = $this->getRequestUrl('getToken');
-    $response = \Drupal::httpClient()->post($request_url, [
+    $response = \Drupal::httpClient()->post(self::TOKEN_ENDPOINT, [
       'headers' => [
         'Content-type' => 'application/json',
         'requesttype' => 'string',
@@ -109,13 +112,11 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
 
     if ($response->getStatusCode() == '200' ) {
       //get token, hydrate service
-
-      /* $msg = 'token retrieved from easyjob, connecting...';
+      $msg = 'token retrieved from easyjob, connecting...';
       \Drupal::logger('easyjob_api')->notice($msg);
       $data = json_decode($response->getBody(), true);
       $result = json_decode($data, true);
-      $this->token = $result->token;
-      return $result; */
+      return $result->access_token;
     }
     return FALSE;
   }
@@ -123,22 +124,17 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
   /**
    * {@inheritdoc}
    */
-  public function getAllProductsMatchingParameters($params = []) {
-    if (empty($this->getToken())) {
+  public function getWebSettings() {
+    if (empty($this->token)) {
       throw new \Exception("Easyjob API not authorized.");
     }
 
-    $request_url = $this->getRequestUrl('getProducts', $params);
-    // Send the http request to the easyjob endpoint.
-    $response = \Drupal::httpClient()->get($request_url, [
-      'headers' => [
-        'Content-type' => 'application/json',
-        'requesttype' => 'string',
-      ],
+    $response = \Drupal::httpClient()->get(self::WEBSETTINGS_ENDPOINT, [
+      'headers' => $this->headers,
     ]);
 
     if ($response->getStatusCode() == '200' ) {
-      $msg = '';
+      $msg = 'Successfully loaded user settings';
       \Drupal::logger('easyjob_api')->notice($msg);
       $data = json_decode($response->getBody(), true);
       $result = json_decode($data, true);
@@ -148,17 +144,27 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
   }
 
   /**
-   * Helper function to construct the url request.
+   * {@inheritdoc}
    */
-  protected function getRequestUrl($requestOperation, $extra_param = false) {
-    $url = $this->auth['baseUrl'];
-    if ($requestOperation == 'getToken') {
-      $url .= '/token/';
+  public function getAllProductsMatchingParameters($params = []) {
+    if (empty($this->token)) {
+      throw new \Exception("Easyjob API not authorized.");
     }
-    if ($requestOperation == 'getProducts') {
+
+    $request_url = $this->getRequestUrl('getProducts', $params);
+    // Send the http request to the easyjob endpoint.
+    $response = \Drupal::httpClient()->get(self::PRODUCTS_ENDPOINT, [
+      'headers' => $this->headers,
+    ]);
+
+    if ($response->getStatusCode() == '200' ) {
+      $msg = 'Succesfully retrieved products';
+      \Drupal::logger('easyjob_api')->notice($msg);
+      $data = json_decode($response->getBody(), true);
+      $result = json_decode($data, true);
+      return $result;
     }
-    
-    return $url;
+    return FALSE;
   }
 
 }
