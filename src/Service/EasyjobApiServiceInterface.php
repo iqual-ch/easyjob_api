@@ -1,6 +1,6 @@
 <?php
 
-namespace Drupal\easyjob_api;
+namespace Drupal\easyjob_api\Service;
 
 /**
  * Interface EasyjobApiServiceInterface
@@ -35,7 +35,7 @@ interface EasyjobApiServiceInterface {
   public function getProductAvailabilityForPeriod($product_id, $start, $end);
 
   /**
-   * 
+   *
    * @param array $data
    *
    * @return mixed
@@ -43,7 +43,7 @@ interface EasyjobApiServiceInterface {
   public function createCustomer($data);
 
   /**
-   * 
+   *
    * @param array $data
    *
    * @return mixed
