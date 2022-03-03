@@ -21,11 +21,11 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
 
   const EDITED_SINCE_ENDPOINT = '/api.json/custom/itemlist/?editedsince=';
 
-  const PRODUCTS_ENDPOINT = '/Items/List/';
+  const PRODUCTS_ENDPOINT = '/api.json/Items/List/';
 
-  const AVAILABILITY_ENDPOINT = '/Items/Avail/';
+  const AVAILABILITY_ENDPOINT = '/api.json/Items/Avail/';
 
-  const SINGLE_PRODUCT_ENDPOINT = '/Items/Details/';
+  const SINGLE_PRODUCT_ENDPOINT = '/api.json/Items/Details/';
 
   const PARENT_CATEGORY_PARAM = 'IdCategoryParent';
 
@@ -167,7 +167,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
     ]);
 
     if ($response->getStatusCode() == '200' ) {
-      $msg = 'Succesfully retrieved products';
+      $msg = 'Succesfully retrieved products ids';
       \Drupal::logger('easyjob_api')->notice($msg);
       $data = json_decode($response->getBody(), true);
       $result = json_decode($data, true);
@@ -179,7 +179,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
   /**
    * {@inheritdoc}
    */
-  public function getProductDetail($product_id) {
+  public function getProductsDetail($product_ids) {
   }
 
   /**

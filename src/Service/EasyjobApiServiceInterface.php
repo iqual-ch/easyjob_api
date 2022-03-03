@@ -10,21 +10,17 @@ namespace Drupal\easyjob_api\Service;
 interface EasyjobApiServiceInterface {
 
   /**
-   * @param array $params
-   * Available parameters:
-   * - editedsince: timestamp
-   * - searchtext: string
-   * - idCategoryParent: int
-   * - idCategory: int
+   * @param string $date
+   * The edited since date (ISO Format)
    * @return array of product ids matching the given parameters
    */
-  public function getAllProductsMatchingParameters($params = []);
+  public function getProductsEditedSince($date = null);
 
   /**
-   * @param int $product_id
+   * @param array $product_ids
    * @return array
    */
-  public function getProductDetail($product_id);
+  public function getProductsDetail($product_ids);
 
   /**
    * @param int $product_id
