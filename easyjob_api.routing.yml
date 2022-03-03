@@ -15,3 +15,11 @@ easyjob_api.test_websettings:
   methods:  [GET]
   requirements:
     _permission: 'administer easyjob api'
+easyjob_api.test_products_ids:
+  path: '/easyjob-api/test/products-edited-since'
+  defaults:
+    _controller: '\Drupal\easyjob_api\Controller\TestController::getProductsEditedSince'
+    _title: 'Easyjob API getProductsEditedSince'
+  methods:  [GET]
+  requirements:
+    _permission: 'administer easyjob api'

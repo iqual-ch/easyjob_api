@@ -54,4 +54,20 @@ class TestController extends ControllerBase {
     );
   }
 
+  /**
+   *
+   */
+  public function getProductsEditedSince() {
+    $timestamp = \Drupal::request()->query->get('timestamp');
+    $date = date('Y-m-d\TH:i:s', $timestamp);
+    $products_ids = $this->easyjob->getProductsEditedSince($date);
+    $products = $this->easyjob->getProductsDetail($products_ids);
+    return new JsonResponse(
+         [
+           'status' => 'OK',
+           'products' => $products,
+         ]
+     );
+  }
+
 }

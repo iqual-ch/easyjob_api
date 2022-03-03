@@ -21,7 +21,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
 
   const EDITED_SINCE_ENDPOINT = '/api.json/custom/itemlist/?editedsince=';
 
-  const PRODUCTS_ENDPOINT = '/api.json/Items/List/';
+  const PRODUCTS_ENDPOINT = ' /api.json/custom/itemdetails/';
 
   const AVAILABILITY_ENDPOINT = '/api.json/Items/Avail/';
 
@@ -106,7 +106,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
   }
 
   /**
-   * Retrieve Authentication Token on service creation to hydrate 
+   * Retrieve Authentication Token on service creation to hydrate
    * all further request headers.
    */
   public function generateToken() {
@@ -129,7 +129,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
       //get token, hydrate service
       $msg = 'token retrieved from easyjob, connecting...';
       \Drupal::logger('easyjob_api')->notice($msg);
-      $data = json_decode($response->getBody(), true);
+      $data = json_decode($response->getBody(), TRUE);
       return $data['access_token'];
     }
   }
@@ -146,7 +146,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
     if ($response->getStatusCode() == '200' ) {
       $msg = 'Successfully loaded user settings';
       \Drupal::logger('easyjob_api')->notice($msg);
-      $data = json_decode($response->getBody(), true);
+      $data = json_decode($response->getBody(), TRUE);
       return $data;
     }
     return FALSE;
@@ -155,23 +155,18 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
   /**
    * {@inheritdoc}
    */
-  public function getProductsEditedSince($date = null ) {
+  public function getProductsEditedSince($date = NULL) {
     if (empty($this->token)) {
       throw new \Exception("Easyjob API not authorized.");
     }
 
-    $request_url = $this->getRequestUrl('getProducts', $params);
-    // Send the http request to the easyjob endpoint.
-    $response = $this->httpClient->get(self::PRODUCTS_ENDPOINT, [
-      'headers' => $this->headers,
-    ]);
+    $response = $this->sendRequest('GET', self::EDITED_SINCE_ENDPOINT . $date);
 
     if ($response->getStatusCode() == '200' ) {
       $msg = 'Succesfully retrieved products ids';
       \Drupal::logger('easyjob_api')->notice($msg);
-      $data = json_decode($response->getBody(), true);
-      $result = json_decode($data, true);
-      return $result;
+      $data = json_decode($response->getBody(), TRUE);
+      return $data;
     }
     return FALSE;
   }
@@ -180,6 +175,21 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
    * {@inheritdoc}
    */
   public function getProductsDetail($product_ids) {
+    if (empty($this->token)) {
+      throw new \Exception("Easyjob API not authorized.");
+    }
+
+    $products = [];
+
+    foreach ($product_ids as $key => $row) {
+      $response = $this->sendRequest('GET', self::SINGLE_PRODUCT_ENDPOINT . $row['ID']);
+      if ($response->getStatusCode() == '200') {
+        $data = json_decode($response->getBody(), TRUE);
+        $products[] = $data;
+      }
+    }
+
+    return $products;
   }
 
   /**
@@ -206,7 +216,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
    * @param string $url
    * @param array $args custom headers, form_params, data
    */
-  protected function sendRequest($method, $url, $args = null){
+  protected function sendRequest($method, $url, $args = []){
     try {
       $response = $this->httpClient->request($method, $url, $args);
       return $response;
