@@ -4,8 +4,8 @@ namespace Drupal\easyjob_api\Service;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Http\ClientFactory;
 use Drupal\easyjob_api\Service\EasyjobApiServiceInterface;
-use Drupal\http_client_manager\HttpClientManagerFactoryInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
@@ -19,6 +19,8 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
 
   const WEBSETTINGS_ENDPOINT = '/api.json/Common/GetWebSettings/';
 
+  const EDITED_SINCE_ENDPOINT = '/api.json/custom/itemlist/?editedsince=';
+
   const PRODUCTS_ENDPOINT = '/Items/List/';
 
   const AVAILABILITY_ENDPOINT = '/Items/Avail/';
@@ -29,7 +31,6 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
 
   const CATEGORY_PARAM = 'IdCategory';
 
-  const EDITED_SINCE_PARAM = 'editedsince';
 
   /**
    * @var EntityTypeManagerInterface
@@ -49,9 +50,9 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
   protected $request;
 
   /**
-   * An Easyjob Services - Contents HTTP Client.
+   * A Guzzle HTTP Client.
    *
-   * @var \Drupal\http_client_manager\HttpClientInterface
+   * @var \Guzzle\Client
    */
   protected $httpClient;
 
@@ -76,23 +77,25 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
    *   The config factory.
    * @param RequestStack $request_stack
    *   The current request stack.
+   * @param ClientFactory $client_factory
+   *   The http client factory.
    */
-  public function __construct(EntityTypeManagerInterface $entity_type_manager, ConfigFactoryInterface $config_factory, RequestStack $request_stack, HttpClientManagerFactoryInterface $http_client_factory) {
+  public function __construct(EntityTypeManagerInterface $entity_type_manager, ConfigFactoryInterface $config_factory, RequestStack $request_stack, ClientFactory $http_client_factory) {
     $this->entityTypeManager = $entity_type_manager;
     $this->request = $request_stack->getCurrentRequest();
     $this->config = $config_factory->get('easyjob_api.settings');
     $this->httpClient = $http_client_factory->fromOptions([
       'base_uri' => $this->config->get('base_url'),
     ]);
-    if (empty($this->config->get('user')) || empty($this->config->get('password'))) {
+    if (empty($this->config->get('username')) || empty($this->config->get('password'))) {
       throw new \Exception("missing username or password for Easyjob API.");
     }
     $this->auth = [
-      'user' => $this->config->get('user'),
+      'username' => $this->config->get('username'),
       'password' => $this->config->get('password'),
     ];
 
-    $this->token =  $this->generateToken();
+    $this->token = $this->generateToken();
     $this->httpClient = $http_client_factory->fromOptions([
       'base_uri' => $this->config->get('base_url'),
       'headers' => [
@@ -103,52 +106,32 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
   }
 
   /**
-   * {@inheritdoc}
+   * Retrieve Authentication Token on service creation to hydrate 
+   * all further request headers.
    */
-  public function getCredentials() {
-    return $this->auth;
-  }
-
-
   public function generateToken() {
     if (empty($this->auth)) {
       throw new \Exception("Easyjob API not authorized.");
     }
-    try {
-      $response = \Drupal::httpClient()->post(self::TOKEN_ENDPOINT, [
-        'headers' => [
-          'Content-type' => 'Content-Type: application/x-www-form-urlencoded',
-        ],
-        'form_params' => [
-          'grant_type' => 'password',
-          'username' => $this->getCredentials()['user'],
-          'password' => $this->getCredentials()['password'],
-        ],
-      ]);
+    $args = [
+      'headers' => [
+        'Content-type' => 'Content-Type: application/x-www-form-urlencoded',
+      ],
+      'form_params' => [
+        'grant_type' => 'password',
+        'username' => $this->getCredentials()['username'],
+        'password' => $this->getCredentials()['password'],
+      ],
+    ];
+    $response = $this->sendRequest('POST', self::TOKEN_ENDPOINT, $args);
 
-      if ($response->getStatusCode() == '200' ) {
-        //get token, hydrate service
-        $msg = 'token retrieved from easyjob, connecting...';
-        \Drupal::logger('easyjob_api')->notice($msg);
-        $data = json_decode($response->getBody(), true);
-        return $data['access_token'];
-      }
-    } catch (GuzzleException $error) {
-      // Get the original response
-      $response = $error->getResponse();
-      // Get the info returned from the remote server.
-      $response_info = $response->getBody()->getContents();
-      // Using FormattableMarkup allows for the use of <pre/> tags, giving a more readable log item.
-      $message = new FormattableMarkup('API connection error. Error details are as follows:<pre>@response</pre>', ['@response' => print_r(json_decode($response_info), TRUE)]);
-      // Log the error
-      watchdog_exception('Remote API Connection', $error, $message);
+    if ($response->getStatusCode() == '200' ) {
+      //get token, hydrate service
+      $msg = 'token retrieved from easyjob, connecting...';
+      \Drupal::logger('easyjob_api')->notice($msg);
+      $data = json_decode($response->getBody(), true);
+      return $data['access_token'];
     }
-    // A non-Guzzle error occurred. The type of exception is unknown, so a generic log item is created.
-    catch (\Exception $error) {
-      // Log the error.
-      watchdog_exception('Remote API Connection', $error, t('An unknown error occurred while trying to connect to the remote API. This is not a Guzzle error, nor an error in the remote API, rather a generic local error ocurred. The reported error was @error', ['@error' => $error->getMessage()]));
-    }
-    return FALSE;
   }
 
   /**
@@ -158,8 +141,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
     if (empty($this->token)) {
       throw new \Exception("Easyjob API not authorized.");
     }
-
-    $response = \Drupal::httpClient()->get(self::WEBSETTINGS_ENDPOINT);
+    $response = $this->sendRequest('GET', self::WEBSETTINGS_ENDPOINT);
 
     if ($response->getStatusCode() == '200' ) {
       $msg = 'Successfully loaded user settings';
@@ -173,14 +155,14 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
   /**
    * {@inheritdoc}
    */
-  public function getAllProductsMatchingParameters($params = []) {
+  public function getProductsEditedSince($date = null ) {
     if (empty($this->token)) {
       throw new \Exception("Easyjob API not authorized.");
     }
 
     $request_url = $this->getRequestUrl('getProducts', $params);
     // Send the http request to the easyjob endpoint.
-    $response = \Drupal::httpClient()->get(self::PRODUCTS_ENDPOINT, [
+    $response = $this->httpClient->get(self::PRODUCTS_ENDPOINT, [
       'headers' => $this->headers,
     ]);
 
@@ -217,4 +199,40 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
    */
   public function createOrder($data) {
   }
+
+  /**
+   * Helper function to encapsulate send request and catch error
+   * @param string $method GET|POST
+   * @param string $url
+   * @param array $args custom headers, form_params, data
+   */
+  protected function sendRequest($method, $url, $args = null){
+    try {
+      $response = $this->httpClient->request($method, $url, $args);
+      return $response;
+    } catch (GuzzleException $error) {
+      // Get the original response
+      $response = $error->getResponse();
+      // Get the info returned from the remote server.
+      $response_info = $response->getBody()->getContents();
+      // Using FormattableMarkup allows for the use of <pre/> tags, giving a more readable log item.
+      $message = new FormattableMarkup('API connection error. Error details are as follows:<pre>@response</pre>', ['@response' => print_r(json_decode($response_info), TRUE)]);
+      // Log the error
+      watchdog_exception('Remote API Connection', $error, $message);
+    }
+    // A non-Guzzle error occurred. The type of exception is unknown, so a generic log item is created.
+    catch (\Exception $error) {
+      // Log the error.
+      watchdog_exception('Remote API Connection', $error, t('An unknown error occurred while trying to connect to the remote API. This is not a Guzzle error, nor an error in the remote API, rather a generic local error ocurred. The reported error was @error', ['@error' => $error->getMessage()]));
+    }
+    return FALSE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function getCredentials() {
+    return $this->auth;
+  }
+
 }
