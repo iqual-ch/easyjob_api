@@ -40,6 +40,13 @@ class EasyjobApiSettingsForm extends ConfigFormBase implements ContainerInjectio
       '#description' => $this->t('The URL of Easyjob API with protocol (https).'),
       '#required' => TRUE,
     ];
+    $form['timestamp'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Last import time'),
+      '#default_value' => $config->get('timestamp'),
+      '#description' => $this->t('The time where the last product import has run.'),
+      '#required' => TRUE,
+    ];
     return parent::buildForm($form, $form_state);
   }
 
@@ -51,6 +58,7 @@ class EasyjobApiSettingsForm extends ConfigFormBase implements ContainerInjectio
     $form_state->cleanValues();
 
     $config->set('base_url', $form_state->getValue('base_url'));
+    $config->set('timestamp', $form_state->getValue('timestamp'));
 
     $config->save();
 

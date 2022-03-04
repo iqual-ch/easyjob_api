@@ -11,4 +11,7 @@ easyjob_api.settings:
     password:
       type: string
       label: 'Password'
+    timestamp:
+      type: string
+      label: 'Last import timestamp'
     
