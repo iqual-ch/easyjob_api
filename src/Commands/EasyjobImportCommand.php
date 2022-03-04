@@ -1,6 +1,6 @@
 <?php
 
-namespace Drupal\easyjob_api\Command;
+namespace Drupal\easyjob_api\Commands;
 
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\easyjob_api\Service\EasyjobProductImportService;

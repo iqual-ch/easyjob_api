@@ -54,7 +54,7 @@ class EasyjobProductImportService {
   }
 
   protected function getProductsToImport() {
-    $timestamp = $this->config->get('last_import_time');
+    $timestamp = $this->config->get('timestamp');
     $date = date('Y-m-d\TH:i:s', $timestamp);
     $products_ids = $this->easyjob->getProductsEditedSince($date);
     $products = $this->easyjob->getProductsDetail($products_ids);
