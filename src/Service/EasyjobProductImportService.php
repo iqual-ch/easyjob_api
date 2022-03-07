@@ -3,7 +3,7 @@
 namespace Drupal\easyjob_api\Service;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
-use Drupal\easyjob_api\EasyjobApiServiceInterface;
+use Drupal\easyjob_api\Service\EasyjobApiServiceInterface;
 /**
  *
  */

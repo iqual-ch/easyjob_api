@@ -65,34 +65,12 @@ function processProduct($product_data, &$context) {
   \Drupal::logger('easyjob_api_import')->notice('processing product '. $product_data['ID']);
     //Create if new product, update if existing
     $easyjob_id = $product_data['ID'];
-    $database = \Drupal::database();
-    $query = $database->select('commerce_product__field_te_item_number_easyjob', 'u')
-    ->condition('u.field_te_item_number_easyjob_value', $easyjob_id, '=')
-    ->fields('u', ['entity_id'])
-    ->range(0, 1)
-    ->execute();
-    $result = $query->fetchObject();
+    $variation = fetchVariation($easyjob_id);
+    $product = fetchProduct($easyjob_id);
+    $product->addVariation($variation);
 
-    if ($result){
-        $product = Product::load($result->entity_id);
-        $variation = ProductVariation::load($result->entity_id);
-        $context['results']['updated']['products']++;
-    }
-    else { 
-      $variation = ProductVariation::create(['type' => 'te_product']);
-      $variation->set('field_te_item_number_easyjob', $easyjob_id);
-      $variation->save();
-      $product = Product::create([
-          'type' => 'te_product', 
-          'variations' => [$variation]
-        ]
-      );
-      $product->set('field_te_item_number_easyjob', $easyjob_id);
-      $context['results']['imported']['products']++;
-    }
-    
-    $this->updateProductFields($product, $product_data);
-    $this->updateProductVariations($variation, $product_data);
+    updateProductFields($product, $product_data);
+    updateVariationFields($variation, $product_data);
 
     $product->save();
     $variation->save();
@@ -118,13 +96,59 @@ function _easyjob_api_finished_import($success, $results, $operations) {
 }
 
 /**
+ * Fetch matching variation or create a new one
+ * @param int $id the easyjob id
+ */
+function fetchVariation($id) {
+    $results = \Drupal::entityTypeManager()->getStorage('commerce_product_variation')->loadByProperties([
+      'type' => 'te_product',
+      'field_te_main_number_easyjob' => $id,
+    ]);
+
+    if (!empty($results)){
+      $variation = reset($results);
+    }
+    else {
+      $variation = ProductVariation::create(['type' => 'te_product']);
+      $variation->set('field_te_main_number_easyjob', $id);
+      $variation->save();
+    }
+    return $variation;
+}
+
+/**
+ * Fetch matching variation or create a new one
+ * @param int $id the easyjob id
+ */
+function fetchProduct($id) {
+    $results = \Drupal::entityTypeManager()->getStorage('commerce_product')->loadByProperties([
+      'type' => 'te_product',
+      'field_te_item_number_easyjob' => $id,
+    ]);
+
+    if (!empty($results)){
+      $product = reset($results);
+      $context['results']['updated']['products']++;
+    }
+    else {
+      $product = Product::create([
+          'type' => 'te_product',
+        ],
+      );
+      $product->set('field_te_item_number_easyjob', $id);
+      $product->save();
+    }
+    return $product;
+}
+
+/**
  * Update product fields with easyjob values
  * @param Product $product the drupal product
  * @param array $data the easyjob data
  */
 function updateProductFields($product, $data) {
     $product->set('title', $data['Titel']);
-    $product->set('status', $data['Publiziert']);
+    ($data['Publiziert']) ? $product->set('status', 1) : $product->set('status', 0);
     $product->set('field_te_item_number_intern', $data['Nummer']);
     $product->set('field_te_seo_text', $data['Beschreibung']);
     $product->set('field_te_additional_information', $data['Zusatzinformationen']);
@@ -138,13 +162,13 @@ function updateProductFields($product, $data) {
  */
 function updateVariationFields($variation, $data) {
     $variation->set('field_st_variation_title', $data['Titel']);
-    $variation->set('field_te_main_commodity_group', $data['Mutterwarengruppe']);
-    $variation->set('field_te_commodity_group', $data['Warengruppe']);
+    //$variation->set('field_te_main_commodity_group', $data['Mutterwarengruppe']);
+    //$variation->set('field_te_commodity_group', $data['Warengruppe']);
     $variation->set('field_te_width', $data['Breite']);
     $variation->set('field_te_height', $data['Hoehe']);
     $variation->set('field_te_depth', $data['Tiefe']);
     $variation->set('field_te_volume', $data['Volumen']);
-    $variation->set('field_te_diameter', $data['Durchmesser']);   
+    $variation->set('field_te_diameter', $data['Durchmesser']);
 
     $variation->set('attribute_te_color', $data['Farbe']);
 
@@ -152,7 +176,7 @@ function updateVariationFields($variation, $data) {
     $variation->set('field_te_price_per_item', $price);
     $variation->set('field_te_voltage_v', $data['Scheinleistung']);
     $variation->set('field_te_effective_power_w', $data['Wirkleistung']);
-    
+
     $variation->set('field_te_form', $data['Verwendungszweck']);
 
     //Taxonomie
