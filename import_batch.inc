@@ -42,7 +42,7 @@ function _easyjob_api_import_products($products, $total, &$context) {
       continue;
     }
     try {
-        $product = processProduct($products[$i], $context);
+        $product = process_product($products[$i], $context);
         \Drupal::entityTypeManager()->getStorage('node')->resetCache([$product->id()]);
     } catch (\Exception $e) {
       \Drupal::logger('easyjob_api')->notice('error: ' . $e->getMessage());
@@ -61,21 +61,27 @@ function _easyjob_api_import_products($products, $total, &$context) {
 /**
  *
  */
-function processProduct($product_data, &$context) {
+function process_product($product_data, &$context) {
   \Drupal::logger('easyjob_api_import')->notice('processing product '. $product_data['ID']);
-    //Create if new product, update if existing
-    $easyjob_id = $product_data['ID'];
-    $variation = fetchVariation($easyjob_id);
-    $product = fetchProduct($easyjob_id);
-    $product->addVariation($variation);
 
-    updateProductFields($product, $product_data);
-    updateVariationFields($variation, $product_data);
+  $easyjob_id = $product_data['ID'];
+  $variation = fetchVariation($easyjob_id);
+  $product = fetchProduct($easyjob_id, $context);
+  $product->addVariation($variation);
 
-    $product->save();
-    $variation->save();
+  if (empty($variation->sku->value)) {
+    $variation->set('sku', $product->id() . '-' . $variation->id());
+  }
 
-    return $product;
+  updateProductFields($product, $product_data);
+  updateVariationFields($variation, $product_data);
+
+  updateVariationTerms($variation, $product_data);
+
+  $product->save();
+  $variation->save();
+
+  return $product;
 }
 
 /**
@@ -119,8 +125,9 @@ function fetchVariation($id) {
 /**
  * Fetch matching variation or create a new one
  * @param int $id the easyjob id
+ * @param array $context the import context array
  */
-function fetchProduct($id) {
+function fetchProduct($id, &$context) {
     $results = \Drupal::entityTypeManager()->getStorage('commerce_product')->loadByProperties([
       'type' => 'te_product',
       'field_te_item_number_easyjob' => $id,
@@ -137,6 +144,7 @@ function fetchProduct($id) {
       );
       $product->set('field_te_item_number_easyjob', $id);
       $product->save();
+      $context['results']['imported']['products']++;
     }
     return $product;
 }
@@ -152,6 +160,7 @@ function updateProductFields($product, $data) {
     $product->set('field_te_item_number_intern', $data['Nummer']);
     $product->set('field_te_seo_text', $data['Beschreibung']);
     $product->set('field_te_additional_information', $data['Zusatzinformationen']);
+
 }
 
 
@@ -170,100 +179,174 @@ function updateVariationFields($variation, $data) {
     $variation->set('field_te_volume', $data['Volumen']);
     $variation->set('field_te_diameter', $data['Durchmesser']);
 
-    $variation->set('attribute_te_color', $data['Farbe']);
-
     $price = ($data['Verbrauchsartikel']) ? $data['Vermietartikel'] :  $data['Verkaufspreis'];
     $variation->set('field_te_price_per_item', $price);
     $variation->set('field_te_voltage_v', $data['Scheinleistung']);
     $variation->set('field_te_effective_power_w', $data['Wirkleistung']);
-
-    $variation->set('field_te_form', $data['Verwendungszweck']);
-
-    //Taxonomie
-   /* $variation->set('field_te_form', $data['Form']);
-   $variation->set('field_te_line', $data['Linie']);
-   $variation->set('field_te_material', $data['Material']);
-   $variation->set('field_te_source_of_energy', $data['Energiequelle']);
-   $variation->set('field_te_product_status', $data['Produktstatus']);
-   $variation->set('field_te_style', $data['Stil']);
-   $variation->set('field_te_season', $data['Saison']);
-   $variation->set('field_te_occasion', $data['Anlass']);
-   $variation->set('field_te_motto', $data['Motto']); */
+    
+    //$variation->set('field_te_form', $data['Verwendungszweck']);
 
 }
 
+/**
+ * Update variation terms with easyjob values
+ * @param ProductVariation $variation the drupal product variation
+ * @param array $data the easyjob data
+ */
+function updateVariationTerms($variation, $data) {
+
+  $mapping = [
+    [
+      'vid' => 'form',
+      'field_name' => 'field_te_form',
+      'easyjob_name' => 'Form',
+      'multiple' => FALSE,
+    ],
+    [
+      'vid' => 'line',
+      'field_name' => 'field_te_line',
+      'easyjob_name' => 'Linie',
+      'multiple' => FALSE,
+    ],
+    [
+      'vid' => 'material',
+      'field_name' => 'field_te_material',
+      'easyjob_name' => 'Material',
+      'multiple' => FALSE,
+    ],
+    [
+      'vid' => 'source_of_energy',
+      'field_name' => 'field_te_source_of_energy',
+      'easyjob_name' => 'Energiequelle',
+      'multiple' => FALSE,
+    ],
+    [
+      'vid' => 'product_status',
+      'field_name' => 'field_te_product_status',
+      'easyjob_name' => 'Produktstatus',
+      'multiple' => FALSE,
+    ],
+    [
+      'vid' => 'style',
+      'field_name' => 'field_te_style',
+      'easyjob_name' => 'Stil',
+      'multiple' => FALSE,
+    ],
+    [
+      'vid' => 'season',
+      'field_name' => 'field_te_season',
+      'easyjob_name' => 'Linie',
+      'multiple' => FALSE,
+    ],
+    [
+      'vid' => 'occasion',
+      'field_name' => 'field_te_occasion',
+      'easyjob_name' => 'Anlass',
+      'multiple' => FALSE,
+    ],
+    [
+      'vid' => 'motto',
+      'field_name' => 'field_te_motto',
+      'easyjob_name' => 'Motto',
+      'multiple' => FALSE,
+    ],
+    [
+      'vid' => 'furniture_attributes',
+      'field_name' => 'field_te_furniture_attributes',
+      'easyjob_name' => 'MobiliarEigenschaften',
+      'multiple' => TRUE,
+    ],
+    [
+      'vid' => 'gastro_attributes',
+      'field_name' => 'field_te_gastro_attributes',
+      'easyjob_name' => 'GastroEigenschaften',
+      'multiple' => TRUE,
+    ],
+    [
+      'vid' => 'purpose',
+      'field_name' => 'field_te_purpose',
+      'easyjob_name' => 'Verwendungszweck',
+      'multiple' => FALSE,
+    ],	
+  ];
+
+  foreach ($mapping as $key => $item) {
+    updateEntityRefenceTermField($variation, $item, $data);
+  }
+ 
+  //$variation->set('attribute_te_color', $data['Farbe']);
+ 
+
+}
 
 /**
- * Update product relationships with easyjob values
+ * Update product terms with easyjob values
  * @param Product $product the drupal product
  * @param array $data the easyjob data
  */
-/* function updateProductRelationships($product, $data) {
-    $product->set('')
-    field_te_additional_products
-    field_te_alternative_products
-    field_te_cleaning_price
-    field_te_item_number_intern
-    field_te_item_number_easyjob
-    field_meta_tags
-    field_te_pdf_instructions
-    field_te_pdf_safety_info
-    field_te_price_per_single_item
-    field_te_product_category
-    field_iq_commerce_images
-    field_te_quantity
-    field_yoast_seo
-    field_te_reference_product
-    field_te_ref_product_amount
-    field_te_seo_text
-    field_te_similar_line_products
-    field_te_youtube_link
+function updateProductTerms($product, $data) {
+  
+  if (!empty($data['ProduktKategorie1'])) {
+    $product_category_id_1 = fetchTerm('product_category', $data['ProduktKategorie1']);
+    $product->get('field_te_product_category')->appendItem(['target_id' => $product_category_id_1]);
+  }
+  if (!empty($data['ProduktKategorie2'])) {
+    $product_category_id_2 = fetchTerm('product_category', $data['ProduktKategorie2']);
+    $product->get('field_te_product_category')->appendItem(['target_id' => $product_category_id_2]);
+  }
+  if (!empty($data['ProduktKategorie3'])) {
+    $product_category_id_3 = fetchTerm('product_category', $data['ProduktKategorie3']);
+    $product->get('field_te_product_category')->appendItem(['target_id' => $product_category_id_3]);
+  }
 
-    "ID": 11988,
-    "Nummer": "1000977.00",
-    "Titel": "Wein- und Fondue Stehtisch",
-    "Bearbeitet": "2022-03-03T09:47:00",
-    "Publiziert": true,
-    "Mutterwarengruppe": "Verleihartikel",
-    "Warengruppe": "Küche & Service\\Küchengeräte",
-    "Produktkategorie1": "Fondue",
-    "Produktkategorie2": null,
-    "Produktkategorie3": null,
-    "Beschreibung": null,
-    "Zusatzinformationen": null,
-    "Breite": 0.000000,
-    "Hoehe": 1.050000,
-    "Tiefe": 0.000000,
-    "Volumen": 0.000000,
-    "Durchmesser": 0.9200,
-    "Fuellmenge": 0.0000,
-    "Linie": null,
-    "Energiequelle": "Feuer",
-    "Farbe": null,
-    "Form": "rund",
-    "Preiskategorie": null,
-    "Lagerstandort1": "2L1Z2F9",
-    "Lagerstandort2": null,
-    "Lagerstandort3": null,
-    "Verkaufspreis": 1400.0000,
-    "Vermietpreis": 95.0000,
-    "Vermietartikel": true,
-    "Verkaufsartikel": false,
-    "Verbrauchsartikel": false,
-    "Scheinleistung": 0.0000,
-    "Wirkleistung": 0.0000,
-    "MobiliarEigenschaften": null,
-    "GastroEigenschaften": "Feuer",
-    "Material": "Metall,Holz",
-    "Verwendungszweck": "Käse,Indoor,Outdoor",
-    "Produktstatus": null,
-    "Stil": null,
-    "Saison": null,
-    "Anlass": null,
-    "Motto": null,
-    "ReferenzenGebunden": "14930,14934,14938,14939,12522",
-    "ReferenzenNormal": "16904,14837",
-    "DazuPassend": "12328,12181,14157",
-    "Modellreihe": null,
-    "Farbvarianten": null
-} */
+}
+
+/**
+ * Update a given referenceitem field for a given entity with the easyjob value.
+ * @param Product|ProductVariation $entity the drupal entity
+ * @param array $mapping the mapping info for the given field
+ * @param string $easyjob_data the easyjob data
+ */
+function updateEntityRefenceTermField($entity, $mapping, $easyjob_data) {
+  if (!empty($easyjob_data[$mapping['easyjob_name']])) {
+    if ($mapping['multiple'] === TRUE) {
+      $values = explode(',', $easyjob_data[$mapping['easyjob_name']]);
+      foreach ($values as $key => $value) {
+        $term = fetchTerm($mapping['vid'], $value);
+        $entity->set($mapping['field_name'], NULL);
+        $entity->get($mapping['field_name'])->appendItem(['target_id' => $term->id()]);
+      }
+    }
+    else {
+      $term = fetchTerm($mapping['vid'], $easyjob_data[$mapping['easyjob_name']]);
+      $entity->set($mapping['field_name'], $term->id());
+    }
+  }
+
+}
+
+/**
+ * Fetch matching term or create a new one
+ * @param string $vid the vocabulary id
+ * @param string $term_value the term value
+ * @param string $term_field the term field (default: name)
+ */
+function fetchTerm($vid, $term_title, $term_field = 'name') {
+  $results = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->loadByProperties([
+    'vid' => $vid,
+    $term_field => $term_title,
+  ]);
+
+  if (!empty($results)){
+    $term = reset($results);
+  }
+  else {
+    $term = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->create([
+      'vid' => $vid,
+      $term_field => $term_title,
+      ],
+    );
+    $term->save();
+  }
+  return $term->id();
+}

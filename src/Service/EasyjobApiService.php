@@ -21,16 +21,13 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
 
   const EDITED_SINCE_ENDPOINT = '/api.json/custom/itemlist/?editedsince=';
 
-  const PRODUCTS_ENDPOINT = ' /api.json/custom/itemdetails/';
-
   const AVAILABILITY_ENDPOINT = '/api.json/Items/Avail/';
 
-  const SINGLE_PRODUCT_ENDPOINT = '/api.json/Items/Details/';
+  const SINGLE_PRODUCT_ENDPOINT = '/api.json/custom/itemdetails/';
 
   const PARENT_CATEGORY_PARAM = 'IdCategoryParent';
 
   const CATEGORY_PARAM = 'IdCategory';
-
 
   /**
    * @var EntityTypeManagerInterface
