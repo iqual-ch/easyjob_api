@@ -48,4 +48,17 @@ class EasyjobImportCommand extends DrushCommands {
     return 0;
   }
 
+    /**
+   * Delete obsolete products.
+   *
+   * @command easyjob:delete-obsolete
+   * @aliases easyjob-delete-obsolete
+   *
+   * @usage easyjob:delete-obsolete
+   */
+  public function deleteObsoleteProducts() {
+    $this->importer->doDelete();
+    return 0;
+  }
+
 }

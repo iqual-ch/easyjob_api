@@ -138,14 +138,14 @@ function process_product($product_data, &$context) {
 /**
  *
  */
-function process_product_relationships($product_data) {
-  \Drupal::logger('easyjob_api_import')->notice('importing relationships for product '. $product_data['ID']);
+function process_product_relationships($product_data, &$context) {
+  \Drupal::logger('easyjob_api_import')->notice('importing relationships for product ' . $product_data['ID']);
 
   $easyjob_id = $product_data['ID'];
   $product = fetchProduct($easyjob_id, $context);
 
   updateProductRelationships($product, $product_data, $context);
-  
+
   $product->save();
 
   return $product;
@@ -249,7 +249,7 @@ function updateVariationFields($variation, $data) {
     $variation->set('field_te_price_per_item', $price);
     $variation->set('field_te_voltage_v', $data['Scheinleistung']);
     $variation->set('field_te_effective_power_w', $data['Wirkleistung']);
-    
+
     //$variation->set('field_te_form', $data['Verwendungszweck']);
 
 }
@@ -333,13 +333,13 @@ function updateVariationTerms($variation, $data) {
       'field_name' => 'field_te_purpose',
       'easyjob_name' => 'Verwendungszweck',
       'multiple' => FALSE,
-    ],	
+    ],
   ];
 
   foreach ($mapping as $key => $item) {
     updateEntityRefenceTermField($variation, $item, $data);
   }
- 
+
   //$variation->set('attribute_te_color', $data['Farbe']);
 
 }
@@ -350,7 +350,7 @@ function updateVariationTerms($variation, $data) {
  * @param array $data the easyjob data
  */
 function updateProductTerms($product, $data) {
-  
+
   if (!empty($data['Produktkategorie1'])) {
     $product_category_id_1 = fetchTerm('product_category', $data['Produktkategorie1']);
     $product->get('field_te_product_category')->appendItem(['target_id' => $product_category_id_1]);
@@ -370,8 +370,9 @@ function updateProductTerms($product, $data) {
  * Update product relationships with easyjob values
  * @param Product $product the drupal product
  * @param array $data the easyjob data
+ * @param array $context the batch context
  */
-function updateProductRelationships($product, $data) {
+function updateProductRelationships($product, $data, &$context) {
   $mapping = [
     [
       'field_name' => 'field_te_additional_products',
@@ -387,9 +388,9 @@ function updateProductRelationships($product, $data) {
     ],
   ];
   foreach ($mapping as $key => $item) {
-    updateEntityRefenceProductField($product, $item['field_name'], $item['easyjob_value']);
+    updateEntityRefenceProductField($product, $item['field_name'], $item['easyjob_value'], $context);
   }
-  
+
   //field_te_cleaning_price => ReferenzenNormal
 }
 
@@ -431,7 +432,7 @@ function updateEntityRefenceProductField($product, $field_name, $easyjob_data, &
         'type' => 'te_product',
         'field_te_item_number_easyjob' => $value,
       ]);
-  
+
       if (!empty($results)){
         $reference = reset($results);
         $product->get($field_name)->appendItem(['target_id' => $reference->id()]);
@@ -439,7 +440,7 @@ function updateEntityRefenceProductField($product, $field_name, $easyjob_data, &
       else{
         $context['results']['error']['products']++;
       }
-      
+
     }
   }
 }

@@ -64,4 +64,20 @@ class EasyjobProductImportService {
     $products = $this->easyjob->getProductsDetail($products_ids);
     return $products;
   }
+
+  public function doDelete(){
+    $product_ids_to_delete = $this->getProductsToDelete();
+    $storage_handler = \Drupal::entityTypeManager()->getStorage('commerce_product');
+    $products = $storage_handler->loadMultiple($product_ids_to_delete);
+    $storage_handler->delete($entities);
+  }
+
+  protected function getProductsToDelete() {
+    $products_ids = array_column($this->easyjob->getProductsEditedSince(0), 'ID');
+    $query = \Drupal::entityQuery('commerce_product')
+    ->condition('type', 'te_product')
+    ->condition('field_te_item_number_easyjob', $products_ids, 'NOT IN');
+    $results = $query->execute();
+    return $results;
+  }
 }
