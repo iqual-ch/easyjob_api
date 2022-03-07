@@ -31,9 +31,13 @@ class EasyjobProductImportService {
       foreach (array_chunk($products, 100) as $batchId => $batch_products) {
         $operations[] = ['_easyjob_api_import_products', [$batch_products, $total]];
       }
+      foreach (array_chunk($products, 100) as $batchId => $batch_products) {
+        $operations[] = ['_easyjob_api_import_product_relationships', [$batch_products, $total]];
+      }
     }
     return $operations;
   }
+  
 
   /**
    *

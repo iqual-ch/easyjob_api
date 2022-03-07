@@ -57,6 +57,55 @@ function _easyjob_api_import_products($products, $total, &$context) {
   $context['message'] = 'Processed ' .  $context['results']['progress'] . ' of ' . ($context['sandbox']['max'] + 1) . ' records (' . round($processed_rel) . ' %).';
 }
 
+/**
+ *
+ */
+function _easyjob_api_import_product_relationships($products, $total, &$context) {
+  if (count($products) < 1) {
+    \Drupal::logger('easyjob_api_import')->notice('nothing to import');
+    return;
+  }
+
+  if (!isset($context['sandbox']['progress'])) {
+    $context['sandbox']['progress'] = 0;
+    $context['sandbox']['current_index'] = 0;
+    $context['sandbox']['current_max'] = max(100, count($products));
+    $context['sandbox']['max'] = $total - 1;
+    $context['sandbox']['start'] = microtime(TRUE);
+
+  }
+  if (!isset($context['results']['products']) || empty($context['results']['products'])) {
+    $context['results']['products'] = $products;
+    $context['results']['progress'] = 0;
+    $context['results']['imported']['products'] = 0;
+    $context['results']['updated']['products'] = 0;
+    $context['results']['error']['products'] = 0;
+  }
+
+  $indexes = range($context['sandbox']['progress'], min($context['sandbox']['progress'] + 99, $context['sandbox']['max']));
+  foreach ($indexes as $i) {
+    $context['sandbox']['progress']++;
+    $context['sandbox']['current_index'] = $i;
+    if ($products[$i] == NULL) {
+      continue;
+    }
+    try {
+      $product = process_product_relationships($products[$i], $context);
+      \Drupal::entityTypeManager()->getStorage('node')->resetCache([$product->id()]);
+      $context['results']['imported']['products']++;
+    } catch (\Exception $e) {
+      \Drupal::logger('easyjob_api')->notice('error: ' . $e->getMessage());
+      $context['results']['error']['products']++;
+    }
+  }
+
+  gc_collect_cycles();
+
+  $context['results']['progress'] += $context['sandbox']['current_max'];
+  $processed_rel = $context['results']['progress'] / ($context['sandbox']['max'] + 1) * 100;
+  $context['message'] = 'Processed ' .  $context['results']['progress'] . ' of ' . ($context['sandbox']['max'] + 1) . ' records (' . round($processed_rel) . ' %).';
+}
+
 
 /**
  *
@@ -77,9 +126,27 @@ function process_product($product_data, &$context) {
   updateVariationFields($variation, $product_data);
 
   updateVariationTerms($variation, $product_data);
+  updateProductTerms($product, $product_data);
 
   $product->save();
   $variation->save();
+
+  return $product;
+}
+
+
+/**
+ *
+ */
+function process_product_relationships($product_data) {
+  \Drupal::logger('easyjob_api_import')->notice('importing relationships for product '. $product_data['ID']);
+
+  $easyjob_id = $product_data['ID'];
+  $product = fetchProduct($easyjob_id, $context);
+
+  updateProductRelationships($product, $product_data, $context);
+  
+  $product->save();
 
   return $product;
 }
@@ -162,7 +229,6 @@ function updateProductFields($product, $data) {
     $product->set('field_te_additional_information', $data['Zusatzinformationen']);
 
 }
-
 
 /**
  * Update variation fields with easyjob values
@@ -275,7 +341,6 @@ function updateVariationTerms($variation, $data) {
   }
  
   //$variation->set('attribute_te_color', $data['Farbe']);
- 
 
 }
 
@@ -286,23 +351,50 @@ function updateVariationTerms($variation, $data) {
  */
 function updateProductTerms($product, $data) {
   
-  if (!empty($data['ProduktKategorie1'])) {
-    $product_category_id_1 = fetchTerm('product_category', $data['ProduktKategorie1']);
+  if (!empty($data['Produktkategorie1'])) {
+    $product_category_id_1 = fetchTerm('product_category', $data['Produktkategorie1']);
     $product->get('field_te_product_category')->appendItem(['target_id' => $product_category_id_1]);
   }
-  if (!empty($data['ProduktKategorie2'])) {
-    $product_category_id_2 = fetchTerm('product_category', $data['ProduktKategorie2']);
+  if (!empty($data['Produktkategorie2'])) {
+    $product_category_id_2 = fetchTerm('product_category', $data['Produktkategorie2']);
     $product->get('field_te_product_category')->appendItem(['target_id' => $product_category_id_2]);
   }
-  if (!empty($data['ProduktKategorie3'])) {
-    $product_category_id_3 = fetchTerm('product_category', $data['ProduktKategorie3']);
+  if (!empty($data['Produktkategorie3'])) {
+    $product_category_id_3 = fetchTerm('product_category', $data['Produktkategorie3']);
     $product->get('field_te_product_category')->appendItem(['target_id' => $product_category_id_3]);
   }
 
 }
 
 /**
- * Update a given referenceitem field for a given entity with the easyjob value.
+ * Update product relationships with easyjob values
+ * @param Product $product the drupal product
+ * @param array $data the easyjob data
+ */
+function updateProductRelationships($product, $data) {
+  $mapping = [
+    [
+      'field_name' => 'field_te_additional_products',
+      'easyjob_value' => $data['DazuPassend'],
+    ],
+    [
+      'field_name' => 'field_te_alternative_products',
+      'easyjob_value' => $data['ReferenzenGebunden'],
+    ],
+    [
+      'field_name' => 'field_te_similar_line_products',
+      'easyjob_value' => $data['Modellreihe'],
+    ],
+  ];
+  foreach ($mapping as $key => $item) {
+    updateEntityRefenceProductField($product, $item['field_name'], $item['easyjob_value']);
+  }
+  
+  //field_te_cleaning_price => ReferenzenNormal
+}
+
+/**
+ * Update a given referenceitem term field for a given entity with the easyjob value.
  * @param Product|ProductVariation $entity the drupal entity
  * @param array $mapping the mapping info for the given field
  * @param string $easyjob_data the easyjob data
@@ -310,19 +402,46 @@ function updateProductTerms($product, $data) {
 function updateEntityRefenceTermField($entity, $mapping, $easyjob_data) {
   if (!empty($easyjob_data[$mapping['easyjob_name']])) {
     if ($mapping['multiple'] === TRUE) {
+      $entity->set($mapping['field_name'], []);
       $values = explode(',', $easyjob_data[$mapping['easyjob_name']]);
       foreach ($values as $key => $value) {
-        $term = fetchTerm($mapping['vid'], $value);
-        $entity->set($mapping['field_name'], NULL);
-        $entity->get($mapping['field_name'])->appendItem(['target_id' => $term->id()]);
+        $term_id = fetchTerm($mapping['vid'], $value);
+        $entity->get($mapping['field_name'])->appendItem(['target_id' => $term_id]);
       }
     }
     else {
-      $term = fetchTerm($mapping['vid'], $easyjob_data[$mapping['easyjob_name']]);
-      $entity->set($mapping['field_name'], $term->id());
+      $term_id = fetchTerm($mapping['vid'], $easyjob_data[$mapping['easyjob_name']]);
+      $entity->set($mapping['field_name'], $term_id);
     }
   }
+}
 
+/**
+ * Update a given referenceitem product field for a given product with the easyjob value.
+ * @param Product $product the drupal product
+ * @param string $field_name the relationship field_name
+ * @param string $easyjob_data the easyjob data
+ */
+function updateEntityRefenceProductField($product, $field_name, $easyjob_data, &$context) {
+  $product->set($field_name, []);
+  if (!empty($easyjob_data)) {
+    $values = explode(',', $easyjob_data);
+    foreach ($values as $key => $value) {
+      $results = \Drupal::entityTypeManager()->getStorage('commerce_product')->loadByProperties([
+        'type' => 'te_product',
+        'field_te_item_number_easyjob' => $value,
+      ]);
+  
+      if (!empty($results)){
+        $reference = reset($results);
+        $product->get($field_name)->appendItem(['target_id' => $reference->id()]);
+      }
+      else{
+        $context['results']['error']['products']++;
+      }
+      
+    }
+  }
 }
 
 /**
