@@ -37,7 +37,6 @@ class EasyjobProductImportService {
     }
     return $operations;
   }
-  
 
   /**
    *
@@ -69,7 +68,7 @@ class EasyjobProductImportService {
     $product_ids_to_delete = $this->getProductsToDelete();
     $storage_handler = \Drupal::entityTypeManager()->getStorage('commerce_product');
     $products = $storage_handler->loadMultiple($product_ids_to_delete);
-    $storage_handler->delete($entities);
+    $storage_handler->delete($products);
   }
 
   protected function getProductsToDelete() {
