@@ -48,7 +48,7 @@ class EasyjobImportCommand extends DrushCommands {
     return 0;
   }
 
-    /**
+  /**
    * Delete obsolete products.
    *
    * @command easyjob:delete-obsolete
