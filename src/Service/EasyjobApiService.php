@@ -42,6 +42,12 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
   protected $config;
 
   /**
+   * @var \Drupal\Core\Http\ClientFactory
+   *   The HTTP Client Factory.
+   */
+  protected $http_client_factory;
+
+  /**
    * @var \Symfony\Component\HttpFoundation\Request
    */
   protected $request;
@@ -81,6 +87,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
     $this->entityTypeManager = $entity_type_manager;
     $this->request = $request_stack->getCurrentRequest();
     $this->config = $config_factory->get('easyjob_api.settings');
+    $this->http_client_factory = $http_client_factory;
     $this->httpClient = $http_client_factory->fromOptions([
       'base_uri' => $this->config->get('base_url'),
     ]);
@@ -128,7 +135,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
       $data = json_decode($response->getBody(), TRUE);
       
       $this->token = $data['access_token'];
-      $this->httpClient = $http_client_factory->fromOptions([
+      $this->httpClient = $this->http_client_factory->fromOptions([
         'base_uri' => $this->config->get('base_url'),
         'headers' => [
           'Authorization' => 'Bearer ' . $this->token,
