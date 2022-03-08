@@ -91,19 +91,18 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
       'username' => $this->config->get('username'),
       'password' => $this->config->get('password'),
     ];
-
-    $this->token = $this->generateToken();
-    $this->httpClient = $http_client_factory->fromOptions([
-      'base_uri' => $this->config->get('base_url'),
-      'headers' => [
-        'Authorization' => 'Bearer ' . $this->token,
-        'Accept'        => 'application/json',
-      ],
-    ]);
+    
   }
 
   /**
-   * Retrieve Authentication Token on service creation to hydrate
+   * Get Authentication Token if it exists or create it.
+   */
+  public function getToken() {
+    return ($this->token) ? $this->token : $this->generateToken();
+  }
+
+  /**
+   * Retrieve Authentication Token and hydrate
    * all further request headers.
    */
   public function generateToken() {
@@ -127,6 +126,16 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
       $msg = 'token retrieved from easyjob, connecting...';
       \Drupal::logger('easyjob_api')->notice($msg);
       $data = json_decode($response->getBody(), TRUE);
+      
+      $this->token = $data['access_token'];
+      $this->httpClient = $http_client_factory->fromOptions([
+        'base_uri' => $this->config->get('base_url'),
+        'headers' => [
+          'Authorization' => 'Bearer ' . $this->token,
+          'Accept'        => 'application/json',
+        ],
+      ]);
+
       return $data['access_token'];
     }
   }
@@ -135,7 +144,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
    * {@inheritdoc}
    */
   public function getWebSettings() {
-    if (empty($this->token)) {
+    if (empty($this->getToken())) {
       throw new \Exception("Easyjob API not authorized.");
     }
     $response = $this->sendRequest('GET', self::WEBSETTINGS_ENDPOINT);
@@ -153,7 +162,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
    * {@inheritdoc}
    */
   public function getProductsEditedSince($date = NULL) {
-    if (empty($this->token)) {
+    if (empty($this->getToken())) {
       throw new \Exception("Easyjob API not authorized.");
     }
 
@@ -172,7 +181,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
    * {@inheritdoc}
    */
   public function getProductsDetail($product_ids) {
-    if (empty($this->token)) {
+    if (empty($this->getToken())) {
       throw new \Exception("Easyjob API not authorized.");
     }
 
