@@ -32,7 +32,7 @@ easyjob_api.test_product_availability:
   requirements:
     _permission: 'administer easyjob api'
 easyjob_api.test_create_project:
-  path: '/easyjob-api/test/create_project'
+  path: '/easyjob-api/test/create-project'
   defaults:
     _controller: '\Drupal\easyjob_api\Controller\TestController::createProject'
     _title: 'Easyjob API create project'

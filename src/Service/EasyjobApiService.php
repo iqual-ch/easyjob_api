@@ -104,7 +104,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
       'username' => $this->config->get('username'),
       'password' => $this->config->get('password'),
     ];
-    
+
   }
 
   /**
@@ -134,12 +134,12 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
     ];
     $response = $this->sendRequest('POST', self::TOKEN_ENDPOINT, $args);
 
-    if ($response->getStatusCode() == '200' ) {
+    if ($response && $response->getStatusCode() == '200' ) {
       //get token, hydrate service
       $msg = 'token retrieved from easyjob, connecting...';
       \Drupal::logger('easyjob_api')->notice($msg);
       $data = json_decode($response->getBody(), TRUE);
-      
+
       $this->token = $data['access_token'];
       $this->httpClient = $this->http_client_factory->fromOptions([
         'base_uri' => $this->config->get('base_url'),
@@ -162,7 +162,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
     }
     $response = $this->sendRequest('GET', self::WEBSETTINGS_ENDPOINT);
 
-    if ($response->getStatusCode() == '200' ) {
+    if ($response && $response->getStatusCode() == '200' ) {
       $msg = 'Successfully loaded user settings';
       \Drupal::logger('easyjob_api')->notice($msg);
       $data = json_decode($response->getBody(), TRUE);
@@ -181,7 +181,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
 
     $response = $this->sendRequest('GET', self::EDITED_SINCE_ENDPOINT . $date);
 
-    if ($response->getStatusCode() == '200' ) {
+    if ($response && $response->getStatusCode() == '200' ) {
       $msg = 'Succesfully retrieved products ids';
       \Drupal::logger('easyjob_api')->notice($msg);
       $data = json_decode($response->getBody(), TRUE);
@@ -202,7 +202,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
 
     foreach ($product_ids as $key => $row) {
       $response = $this->sendRequest('GET', self::SINGLE_PRODUCT_ENDPOINT . $row['ID']);
-      if ($response->getStatusCode() == '200') {
+      if ($response && $response->getStatusCode() == '200') {
         $data = json_decode($response->getBody(), TRUE);
         $products[] = $data;
       }
@@ -221,16 +221,16 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
     if (empty($start) || empty($end)) {
       throw new \Exception("Start and end dates are mandatory.");
     }
-    $response = $this->sendRequest('GET', 
-      self::AVAILABILITY_ENDPOINT . $product_id . '?' . 
-      self::STARTDATE_PARAM . '=' . $start . '&' . 
+    $response = $this->sendRequest('GET',
+      self::AVAILABILITY_ENDPOINT . $product_id . '?' .
+      self::STARTDATE_PARAM . '=' . $start . '&' .
       self::FINISHDATE_PARAM . '=' . $end
     );
-    if ($response->getStatusCode() == '200') {
+    if ($response && $response->getStatusCode() == '200') {
       $data = json_decode($response->getBody(), TRUE);
       return $data;
     }
-    
+
     return FALSE;
   }
 
@@ -244,16 +244,20 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
     if (empty($data)) {
       throw new \Exception("No project data.");
     }
-    $response = $this->sendRequest('POST', 
+    $args = [
+      'json' => $data,
+    ];
+    $response = $this->sendRequest('POST',
       self::CREATE_PROJECT_ENDPOINT,
-      $data
+      $args,
     );
-    if ($response->getStatusCode() == '200') {
+    if ($response && $response->getStatusCode() == '200') {
       $data = json_decode($response->getBody(), TRUE);
       return $data;
     }
-    
-    return FALSE;
+    else {
+      throw new \Exception("An error occured.");
+    }
   }
 
   /**

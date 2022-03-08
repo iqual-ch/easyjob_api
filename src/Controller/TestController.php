@@ -90,94 +90,15 @@ class TestController extends ControllerBase {
    *
    */
   public function createProject() {
-    $data = '{
-      "ID": "100000",
-      "ProjectName": "TEST - Projektname",
-      "StartDate": "2023-10-09T00:00:00",
-      "EndDate": "2023-10-11T00:00:00",
-      "CustomerComment": "TEST BESTELLUNG",
-      "PaymentAmount": 123.45,
-      "PaymentMethod": "Kreditkarte",
-      "ProjectState": "0",
-      "Service": "0",
-      "CustomerAddress": {
-      "Company": "TEST Firmenname",
-      "Name2": "TEST Firma Zusatz",
-      "Street": "TEST Straße",
-      "Street2": "TEST Adresszusatz",
-      "Zip": "TEST Postleitzahl",
-      "City": "TEST Ort",
-      "Fax": "TEST Faxnummer",
-      "Phone": "TEST Telefonnummer",
-      "EMail": "TEST E-Mail",
-      "WWWAdress": "TEST Webseite",
-      "Country": {
-      "Caption": "TEST Land"
-      },
-      "PrimaryContact": {
-      "FirstName": "TEST Vorname",
-      "Surname": "TEST Nachname"
-      }
-      },
-      "DeliveryAddress": {
-      "Company": "TEST Firmenname",
-      "Name2": "TEST Firma Zusatz",
-      "Street": "TEST Straße",
-      "Street2": "TEST Adresszusatz",
-      "Zip": "TEST Postleitzahl",
-      "City": "TEST Ort",
-      "Fax": "TEST Faxnummer",
-      "Phone": "TEST Telefonnummer",
-      "EMail": "TEST E-Mail",
-      "WWWAdress": "TEST Webseite",
-      "Country": {
-      "Caption": "TEST Land"
-      },
-      "PrimaryContact": {
-      "FirstName": "TEST Vorname",
-      "Surname": "TEST Nachname"
-      }
-      },
-      "InvoiceAddress": {
-      "Company": "TEST Firmenname",
-      "Name2": "TEST Firma Zusatz",
-      "Street": "TEST Straße",
-      "Street2": "TEST Adresszusatz",
-      "Zip": "TEST Postleitzahl",
-      "City": "TEST Ort",
-      "Fax": "TEST Faxnummer",
-      "Phone": "TEST Telefonnummer",
-      "EMail": "TEST E-Mail",
-      "WWWAdress": "TEST Webseite",
-      "Country": {
-      "Caption": "TEST Land"
-      },
-      "PrimaryContact": {
-      "FirstName": "TEST Vorname",
-      "Surname": "TEST Nachname"
-      }
-      },
-      "Items": [
-      {
-      "ID": "23940",
-      "Quantity": 5,
-      "Price": 23.5
-      },
-      {
-      "ID": "50000",
-      "Quantity": 5,
-      "Price": 0
-      }
-      ]
-      }
-    ';
-    $project = $this->easyjob->createProject($data);
+    $data = '{"ID": "100000","ProjectName": "TEST - Projektname","StartDate": "2023-10-09T00:00:00","EndDate": "2023-10-11T00:00:00","CustomerComment": "TEST BESTELLUNG","PaymentAmount": 123.45,"PaymentMethod": "Kreditkarte","ProjectState": "0","Service": "0","CustomerAddress": {"Company": "TEST Firmenname","Name2": "TEST Firma Zusatz","Street": "TEST Straße","Street2": "TEST Adresszusatz","Zip": "TEST Postleitzahl","City": "TEST Ort","Fax": "TEST Faxnummer","Phone": "TEST Telefonnummer","EMail": "TEST E-Mail","WWWAdress": "TEST Webseite","Country": {"Caption": "TEST Land"},"PrimaryContact": {"FirstName": "TEST Vorname","Surname": "TEST Nachname"}},"DeliveryAddress": {"Company": "TEST Firmenname","Name2": "TEST Firma Zusatz","Street": "TEST Straße","Street2": "TEST Adresszusatz","Zip": "TEST Postleitzahl","City": "TEST Ort","Fax": "TEST Faxnummer","Phone": "TEST Telefonnummer","EMail": "TEST E-Mail","WWWAdress": "TEST Webseite","Country": {"Caption": "TEST Land"},"PrimaryContact": {"FirstName": "TEST Vorname","Surname": "TEST Nachname"}},"InvoiceAddress": {"Company": "TEST Firmenname","Name2": "TEST Firma Zusatz","Street": "TEST Straße","Street2": "TEST Adresszusatz","Zip": "TEST Postleitzahl","City": "TEST Ort","Fax": "TEST Faxnummer","Phone": "TEST Telefonnummer","EMail": "TEST E-Mail","WWWAdress": "TEST Webseite","Country": {"Caption": "TEST Land"},"PrimaryContact": {"FirstName": "TEST Vorname","Surname": "TEST Nachname"}},"Items": [{"ID": "23940","Quantity": 5,"Price": 23.5},{"ID": "50000","Quantity": 5,"Price": 0}]}';
+    $array = json_decode($data, TRUE);
+    $project = $this->easyjob->createProject($array);
     return new JsonResponse(
-         [
-           'status' => 'OK',
-           'stock' => $project,
-         ]
-     );
+      [
+        'status' => 'OK',
+        'project' => $project,
+      ]
+    );
   }
 
 }

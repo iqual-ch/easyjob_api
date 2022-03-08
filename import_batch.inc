@@ -351,16 +351,34 @@ function updateVariationTerms($variation, $data) {
  */
 function updateProductTerms($product, $data) {
 
+  if (!empty($data['Mutterwarengruppe'])) {
+    $product_haupt_category_id = fetchTerm('product_category', $data['Mutterwarengruppe']);
+  }
+  if (!empty($data['Warengruppe'])) {
+    $product_main_category_id = fetchTerm('product_category', $data['Warengruppe']);
+    $product_main_category = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->load($product_main_category_id);
+    $product_main_category->set('parent', $product_haupt_category_id);
+    $product_main_category->save();
+  }
   if (!empty($data['Produktkategorie1'])) {
     $product_category_id_1 = fetchTerm('product_category', $data['Produktkategorie1']);
+    $product_category_1 = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->load($product_category_id_1);
+    $product_category_1->set('parent', $product_main_category_id);
+    $product_category_1->save();
     $product->get('field_te_product_category')->appendItem(['target_id' => $product_category_id_1]);
   }
   if (!empty($data['Produktkategorie2'])) {
     $product_category_id_2 = fetchTerm('product_category', $data['Produktkategorie2']);
+    $product_category_2 = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->load($product_category_id_2);
+    $product_category_2->set('parent', $product_main_category_id);
+    $product_category_2->save();
     $product->get('field_te_product_category')->appendItem(['target_id' => $product_category_id_2]);
   }
   if (!empty($data['Produktkategorie3'])) {
     $product_category_id_3 = fetchTerm('product_category', $data['Produktkategorie3']);
+    $product_category_3 = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->load($product_category_id_3);
+    $product_category_3->set('parent', $product_main_category_id);
+    $product_category_3->save();
     $product->get('field_te_product_category')->appendItem(['target_id' => $product_category_id_3]);
   }
 
