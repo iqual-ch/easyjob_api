@@ -237,13 +237,23 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
   /**
    * {@inheritdoc}
    */
-  public function createCustomer($data) {
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function createOrder($data) {
+  public function createProject($data) {
+    if (empty($this->getToken())) {
+      throw new \Exception("Easyjob API not authorized.");
+    }
+    if (empty($data)) {
+      throw new \Exception("No project data.");
+    }
+    $response = $this->sendRequest('POST', 
+      self::CREATE_PROJECT_ENDPOINT,
+      $data
+    );
+    if ($response->getStatusCode() == '200') {
+      $data = json_decode($response->getBody(), TRUE);
+      return $data;
+    }
+    
+    return FALSE;
   }
 
   /**

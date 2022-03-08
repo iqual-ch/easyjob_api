@@ -77,11 +77,105 @@ class TestController extends ControllerBase {
     $product_id = \Drupal::request()->query->get('product_id');
     $start = \Drupal::request()->query->get('start');
     $end = \Drupal::request()->query->get('end');
-    $stock = $this->easyjob->getProductAvailabilityForPeriod($products_id, $start, $end);
+    $stock = $this->easyjob->getProductAvailabilityForPeriod($product_id, $start, $end);
     return new JsonResponse(
          [
            'status' => 'OK',
-           'products' => $stock,
+           'stock' => $stock,
+         ]
+     );
+  }
+
+  /**
+   *
+   */
+  public function createProject() {
+    $data = '{
+      "ID": "100000",
+      "ProjectName": "TEST - Projektname",
+      "StartDate": "2023-10-09T00:00:00",
+      "EndDate": "2023-10-11T00:00:00",
+      "CustomerComment": "TEST BESTELLUNG",
+      "PaymentAmount": 123.45,
+      "PaymentMethod": "Kreditkarte",
+      "ProjectState": "0",
+      "Service": "0",
+      "CustomerAddress": {
+      "Company": "TEST Firmenname",
+      "Name2": "TEST Firma Zusatz",
+      "Street": "TEST Straße",
+      "Street2": "TEST Adresszusatz",
+      "Zip": "TEST Postleitzahl",
+      "City": "TEST Ort",
+      "Fax": "TEST Faxnummer",
+      "Phone": "TEST Telefonnummer",
+      "EMail": "TEST E-Mail",
+      "WWWAdress": "TEST Webseite",
+      "Country": {
+      "Caption": "TEST Land"
+      },
+      "PrimaryContact": {
+      "FirstName": "TEST Vorname",
+      "Surname": "TEST Nachname"
+      }
+      },
+      "DeliveryAddress": {
+      "Company": "TEST Firmenname",
+      "Name2": "TEST Firma Zusatz",
+      "Street": "TEST Straße",
+      "Street2": "TEST Adresszusatz",
+      "Zip": "TEST Postleitzahl",
+      "City": "TEST Ort",
+      "Fax": "TEST Faxnummer",
+      "Phone": "TEST Telefonnummer",
+      "EMail": "TEST E-Mail",
+      "WWWAdress": "TEST Webseite",
+      "Country": {
+      "Caption": "TEST Land"
+      },
+      "PrimaryContact": {
+      "FirstName": "TEST Vorname",
+      "Surname": "TEST Nachname"
+      }
+      },
+      "InvoiceAddress": {
+      "Company": "TEST Firmenname",
+      "Name2": "TEST Firma Zusatz",
+      "Street": "TEST Straße",
+      "Street2": "TEST Adresszusatz",
+      "Zip": "TEST Postleitzahl",
+      "City": "TEST Ort",
+      "Fax": "TEST Faxnummer",
+      "Phone": "TEST Telefonnummer",
+      "EMail": "TEST E-Mail",
+      "WWWAdress": "TEST Webseite",
+      "Country": {
+      "Caption": "TEST Land"
+      },
+      "PrimaryContact": {
+      "FirstName": "TEST Vorname",
+      "Surname": "TEST Nachname"
+      }
+      },
+      "Items": [
+      {
+      "ID": "23940",
+      "Quantity": 5,
+      "Price": 23.5
+      },
+      {
+      "ID": "50000",
+      "Quantity": 5,
+      "Price": 0
+      }
+      ]
+      }
+    ';
+    $project = $this->easyjob->createProject($data);
+    return new JsonResponse(
+         [
+           'status' => 'OK',
+           'stock' => $project,
          ]
      );
   }
