@@ -70,4 +70,20 @@ class TestController extends ControllerBase {
      );
   }
 
+  /**
+   *
+   */
+  public function getProductAvailability() {
+    $product_id = \Drupal::request()->query->get('product_id');
+    $start = \Drupal::request()->query->get('start');
+    $end = \Drupal::request()->query->get('end');
+    $stock = $this->easyjob->getProductAvailabilityForPeriod($products_id, $start, $end);
+    return new JsonResponse(
+         [
+           'status' => 'OK',
+           'products' => $stock,
+         ]
+     );
+  }
+
 }

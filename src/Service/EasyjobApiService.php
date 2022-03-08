@@ -25,9 +25,15 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
 
   const SINGLE_PRODUCT_ENDPOINT = '/api.json/custom/itemdetails/';
 
+  const CREATE_PROJECT_ENDPOINT = '/api.json/custom/CreateProject/';
+
   const PARENT_CATEGORY_PARAM = 'IdCategoryParent';
 
   const CATEGORY_PARAM = 'IdCategory';
+
+  const STARTDATE_PARAM = 'startdate';
+
+  const FINISHDATE_PARAM = 'enddate';
 
   /**
    * @var EntityTypeManagerInterface
@@ -209,6 +215,23 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
    * {@inheritdoc}
    */
   public function getProductAvailabilityForPeriod($product_id, $start, $end) {
+    if (empty($this->getToken())) {
+      throw new \Exception("Easyjob API not authorized.");
+    }
+    if (empty($start) || empty($end)) {
+      throw new \Exception("Start and end dates are mandatory.");
+    }
+    $response = $this->sendRequest('GET', 
+      self::AVAILABILITY_ENDPOINT . $product_id . '?' . 
+      self::STARTDATE_PARAM . '=' . $start . '&' . 
+      self::FINISHDATE_PARAM . '=' . $end
+    );
+    if ($response->getStatusCode() == '200') {
+      $data = json_decode($response->getBody(), TRUE);
+      return $data;
+    }
+    
+    return FALSE;
   }
 
   /**
