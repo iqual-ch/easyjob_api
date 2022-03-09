@@ -106,7 +106,6 @@ function _easyjob_api_import_product_relationships($products, $total, &$context)
   $context['message'] = 'Processed ' .  $context['results']['progress'] . ' of ' . ($context['sandbox']['max'] + 1) . ' records (' . round($processed_rel) . ' %).';
 }
 
-
 /**
  *
  */
@@ -128,12 +127,13 @@ function process_product($product_data, &$context) {
   updateVariationTerms($variation, $product_data);
   updateProductTerms($product, $product_data);
 
+  updateVariationAttributes($variation, $product_data);
+
   $product->save();
   $variation->save();
 
   return $product;
 }
-
 
 /**
  *
@@ -227,7 +227,6 @@ function updateProductFields($product, $data) {
     $product->set('field_te_item_number_intern', $data['Nummer']);
     $product->set('field_te_seo_text', $data['Beschreibung']);
     $product->set('field_te_additional_information', $data['Zusatzinformationen']);
-
 }
 
 /**
@@ -237,21 +236,15 @@ function updateProductFields($product, $data) {
  */
 function updateVariationFields($variation, $data) {
     $variation->set('field_st_variation_title', $data['Titel']);
-    //$variation->set('field_te_main_commodity_group', $data['Mutterwarengruppe']);
-    //$variation->set('field_te_commodity_group', $data['Warengruppe']);
     $variation->set('field_te_width', $data['Breite']);
     $variation->set('field_te_height', $data['Hoehe']);
     $variation->set('field_te_depth', $data['Tiefe']);
     $variation->set('field_te_volume', $data['Volumen']);
     $variation->set('field_te_diameter', $data['Durchmesser']);
-
     $price = ($data['Verbrauchsartikel']) ? $data['Vermietartikel'] :  $data['Verkaufspreis'];
     $variation->set('field_te_price_per_item', $price);
     $variation->set('field_te_voltage_v', $data['Scheinleistung']);
     $variation->set('field_te_effective_power_w', $data['Wirkleistung']);
-
-    //$variation->set('field_te_form', $data['Verwendungszweck']);
-
 }
 
 /**
@@ -340,8 +333,18 @@ function updateVariationTerms($variation, $data) {
     updateEntityRefenceTermField($variation, $item, $data);
   }
 
-  //$variation->set('attribute_te_color', $data['Farbe']);
+}
 
+/**
+ * Update variation attribute with easyjob values
+ * @param ProductVariation $variation the drupal product variation
+ * @param array $data the easyjob data
+ */
+function updateVariationAttributes($variation, $data) {
+  if (!empty($data['Farbe'])) {
+    $color_attribute_value = fetchAttributeValue('te_color', 'Color', $data['Farbe']);
+    $variation->set('attribute_te_color', $color_attribute_value);
+  }
 }
 
 /**
@@ -487,4 +490,30 @@ function fetchTerm($vid, $term_title, $term_field = 'name') {
     $term->save();
   }
   return $term->id();
+}
+
+/**
+ * Fetch matching term or create a new one
+ * @param string $attribute the product attribute id
+ * @param string $label the product attribute label
+ * @param string $value the product attribute value
+ * @return \Drupal\commerce_product\Entity\ProductAttributeValue $attribute_value
+ */
+function fetchAttributeValue($attribute_id, $label, $value) {
+  $attribute = \Drupal\commerce_product\Entity\ProductAttribute::load($attribute_id);
+
+  if (!$attribute){
+    $attribute = \Drupal\commerce_product\Entity\ProductAttribute::create([
+      'id' => $attribute_id,
+      'label' => $label,
+    ]);
+  }
+
+  $attribute_value = \Drupal\commerce_product\Entity\ProductAttributeValue::create([
+    'attribute' => $attribute_id,
+    'name' => $value,
+  ]);
+  $attribute_value->save();
+
+  return $attribute_value;
 }
