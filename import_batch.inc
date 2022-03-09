@@ -17,27 +17,28 @@ function _easyjob_api_import_products($products, $total, &$context) {
     \Drupal::logger('easyjob_api_import')->notice('nothing to import');
     return;
   }
+  \Drupal::logger('easyjob_api_import')->notice('=== Start import ===');
 
-  if (!isset($context['sandbox']['progress'])) {
-    $context['sandbox']['progress'] = 0;
-    $context['sandbox']['current_index'] = 0;
-    $context['sandbox']['current_max'] = max(100, count($products));
-    $context['sandbox']['max'] = $total - 1;
-    $context['sandbox']['start'] = microtime(TRUE);
+  if (!isset($context['sandbox']['progress']['products'])) {
+    $context['sandbox']['progress']['products'] = 0;
+    $context['sandbox']['current_index']['products'] = 0;
+    $context['sandbox']['current_max']['products'] = min(100, count($products));
+    $context['sandbox']['max']['products'] = $total - 1;
+    $context['sandbox']['start']['products'] = microtime(TRUE);
 
   }
   if (!isset($context['results']['products']) || empty($context['results']['products'])) {
     $context['results']['products'] = $products;
-    $context['results']['progress'] = 0;
+    $context['results']['progress']['products'] = 0;
     $context['results']['imported']['products'] = 0;
     $context['results']['updated']['products'] = 0;
     $context['results']['error']['products'] = 0;
   }
 
-  $indexes = range($context['sandbox']['progress'], min($context['sandbox']['progress'] + 99, $context['sandbox']['max']));
+  $indexes = range($context['sandbox']['progress']['products'], min($context['sandbox']['progress']['products'] + 99, $context['sandbox']['max']['products']));
   foreach ($indexes as $i) {
-    $context['sandbox']['progress']++;
-    $context['sandbox']['current_index'] = $i;
+    $context['sandbox']['progress']['products']++;
+    $context['sandbox']['current_index']['products'] = $i;
     if ($products[$i] == NULL) {
       continue;
     }
@@ -52,9 +53,9 @@ function _easyjob_api_import_products($products, $total, &$context) {
 
   gc_collect_cycles();
 
-  $context['results']['progress'] += $context['sandbox']['current_max'];
-  $processed_rel = $context['results']['progress'] / ($context['sandbox']['max'] + 1) * 100;
-  $context['message'] = 'Processed ' .  $context['results']['progress'] . ' of ' . ($context['sandbox']['max'] + 1) . ' records (' . round($processed_rel) . ' %).';
+  $context['results']['progress']['products'] += $context['sandbox']['current_max']['products'];
+  $processed_rel = $context['results']['progress']['products'] / ($context['sandbox']['max']['products'] + 1) * 100;
+  $context['message'] = 'Processed ' . $context['results']['progress']['products'] . ' of ' . ($context['sandbox']['max']['products'] + 1) . ' records (' . round($processed_rel) . ' %).';
 }
 
 /**
@@ -66,51 +67,70 @@ function _easyjob_api_import_product_relationships($products, $total, &$context)
     return;
   }
 
-  if (!isset($context['sandbox']['progress'])) {
-    $context['sandbox']['progress'] = 0;
-    $context['sandbox']['current_index'] = 0;
-    $context['sandbox']['current_max'] = max(100, count($products));
-    $context['sandbox']['max'] = $total - 1;
-    $context['sandbox']['start'] = microtime(TRUE);
+  if (!isset($context['sandbox']['progress']['relationships'])) {
+    $context['sandbox']['progress']['relationships'] = 0;
+    $context['sandbox']['current_index']['relationships'] = 0;
+    $context['sandbox']['current_max']['relationships'] = min(100, count($products));
+    $context['sandbox']['max']['relationships'] = $total - 1;
+    $context['sandbox']['start']['relationships'] = microtime(TRUE);
 
   }
-  if (!isset($context['results']['products']) || empty($context['results']['products'])) {
-    $context['results']['products'] = $products;
-    $context['results']['progress'] = 0;
-    $context['results']['imported']['products'] = 0;
-    $context['results']['updated']['products'] = 0;
-    $context['results']['error']['products'] = 0;
+  if (!isset($context['results']['relationships']) || empty($context['results']['relationships'])) {
+    $context['results']['relationships'] = $products;
+    $context['results']['progress']['relationships'] = 0;
+    $context['results']['updated']['relationships'] = 0;
+    $context['results']['error']['relationships'] = 0;
   }
 
-  $indexes = range($context['sandbox']['progress'], min($context['sandbox']['progress'] + 99, $context['sandbox']['max']));
+  $indexes = range($context['sandbox']['progress']['relationships'], min($context['sandbox']['progress']['relationships'] + 99, $context['sandbox']['max']['relationships']));
   foreach ($indexes as $i) {
-    $context['sandbox']['progress']++;
-    $context['sandbox']['current_index'] = $i;
+    $context['sandbox']['progress']['relationships']++;
+    $context['sandbox']['current_index']['relationships'] = $i;
     if ($products[$i] == NULL) {
       continue;
     }
     try {
       $product = process_product_relationships($products[$i], $context);
       \Drupal::entityTypeManager()->getStorage('node')->resetCache([$product->id()]);
-      $context['results']['imported']['products']++;
+      $context['results']['updated']['relationships']++;
     } catch (\Exception $e) {
       \Drupal::logger('easyjob_api')->notice('error: ' . $e->getMessage());
-      $context['results']['error']['products']++;
+      $context['results']['error']['relationships']++;
     }
   }
 
   gc_collect_cycles();
 
-  $context['results']['progress'] += $context['sandbox']['current_max'];
-  $processed_rel = $context['results']['progress'] / ($context['sandbox']['max'] + 1) * 100;
-  $context['message'] = 'Processed ' .  $context['results']['progress'] . ' of ' . ($context['sandbox']['max'] + 1) . ' records (' . round($processed_rel) . ' %).';
+  $context['results']['progress']['relationships'] += $context['sandbox']['current_max']['relationships'];
+  $processed_rel = $context['results']['progress']['relationships'] / ($context['sandbox']['max']['relationships'] + 1) * 100;
+  $context['message'] = 'Relationships updated for ' . $context['results']['progress']['relationships'] . ' of ' . ($context['sandbox']['max']['relationships'] + 1) . ' records (' . round($processed_rel) . ' %).';
+}
+
+/**
+ *
+ */
+function _easyjob_api_finished_import($success, $results, $operations) {
+  $msg = "\n" . '=== Import finished ===';
+  if (!empty($results['products'])) {
+    $msg .= "\n" . 'Imported ' . $results['imported']['products'] . ' products and updated ' . $results['updated']['products'];
+    $msg .= "\n" . 'Errors: ' . $results['error']['products'];
+  }
+  if (!empty($results['relationships'])) {
+    $msg .= "\n" . 'Missing relationships: ' . $results['error']['relationships'];
+  }
+  $msg .= "\n" . '======';
+  \Drupal::logger('easyjob_api_import')->notice($msg);
+  $config = \Drupal::getContainer()->get('config.factory')->getEditable('easyjob_api.settings');
+  $config->set('timestamp', time());
+  $config->save();
+
+  return 0;
 }
 
 /**
  *
  */
 function process_product($product_data, &$context) {
-  \Drupal::logger('easyjob_api_import')->notice('processing product '. $product_data['ID']);
 
   $easyjob_id = $product_data['ID'];
   $variation = fetchVariation($easyjob_id);
@@ -132,6 +152,20 @@ function process_product($product_data, &$context) {
   $product->save();
   $variation->save();
 
+  //Log
+  /* if (!empty($product_data['Bild'])) {
+    \Drupal::logger('easyjob_api_import')->notice('product with ID ' . $product_data['ID'] . ' has an image');
+  }
+  if (!empty($product_data['Anhaenge'])) {
+    \Drupal::logger('easyjob_api_import')->notice('product with ID ' . $product_data['ID'] . ' has an attachment');
+  } */
+  if (!empty($product_data['Farbvarianten'])) {
+    \Drupal::logger('easyjob_api_import')->notice('product with ID ' . $product_data['ID'] . ' has a variant');
+  }
+  /* if (!empty($product_data['ReferenzenNormal']) && count(explode(',', $product_data['ReferenzenNormal'])) > 1) {
+    \Drupal::logger('easyjob_api_import')->notice('product with ID ' . $product_data['ID'] . ' has more than one references');
+  } */
+
   return $product;
 }
 
@@ -139,12 +173,15 @@ function process_product($product_data, &$context) {
  *
  */
 function process_product_relationships($product_data, &$context) {
-  \Drupal::logger('easyjob_api_import')->notice('importing relationships for product ' . $product_data['ID']);
 
   $easyjob_id = $product_data['ID'];
-  $product = fetchProduct($easyjob_id, $context);
+  $product = fetchProduct($easyjob_id);
 
   updateProductRelationships($product, $product_data, $context);
+
+  if (!empty($product_data['Farbvarianten'])) {
+    updateProductVariations($product, $product_data, $context);
+  }
 
   $product->save();
 
@@ -152,27 +189,12 @@ function process_product_relationships($product_data, &$context) {
 }
 
 /**
- *
- */
-function _easyjob_api_finished_import($success, $results, $operations) {
-  $msg = 'Import finished';
-  if (!empty($results['products'])) {
-    $msg .= '<br />Imported ' . $results['imported']['products'] . ' products and updated ' . $results['updated']['products'];
-    $msg .= '<br />Errors: ' . $results['error']['products'];
-  }
-  \Drupal::logger('easyjob_api_import')->notice($msg);
-  $config = \Drupal::getContainer()->get('config.factory')->getEditable('easyjob_api.settings');
-  $config->set('timestamp', time());
-  $config->save();
-
-  return 0;
-}
-
-/**
  * Fetch matching variation or create a new one
  * @param int $id the easyjob id
+ * @param boolean $create wheter to create one if it does not exist
+ * @return ProductVariation|null $variation
  */
-function fetchVariation($id) {
+function fetchVariation($id, $create = TRUE) {
     $results = \Drupal::entityTypeManager()->getStorage('commerce_product_variation')->loadByProperties([
       'type' => 'te_product',
       'field_te_main_number_easyjob' => $id,
@@ -182,11 +204,16 @@ function fetchVariation($id) {
       $variation = reset($results);
     }
     else {
-      $variation = ProductVariation::create(['type' => 'te_product']);
-      $variation->set('field_te_main_number_easyjob', $id);
-      $variation->save();
+      if ($create) {
+        $variation = ProductVariation::create(['type' => 'te_product']);
+        $variation->set('field_te_main_number_easyjob', $id);
+        $variation->save();
+      }
+      else {
+        $variation = NULL;
+      }
     }
-    return $variation;
+  return $variation;
 }
 
 /**
@@ -194,7 +221,7 @@ function fetchVariation($id) {
  * @param int $id the easyjob id
  * @param array $context the import context array
  */
-function fetchProduct($id, &$context) {
+function fetchProduct($id, &$context = []) {
     $results = \Drupal::entityTypeManager()->getStorage('commerce_product')->loadByProperties([
       'type' => 'te_product',
       'field_te_item_number_easyjob' => $id,
@@ -401,11 +428,15 @@ function updateProductRelationships($product, $data, &$context) {
     ],
     [
       'field_name' => 'field_te_alternative_products',
-      'easyjob_value' => $data['ReferenzenGebunden'],
+      'easyjob_value' => $data['Alternativen'],
     ],
     [
       'field_name' => 'field_te_similar_line_products',
       'easyjob_value' => $data['Modellreihe'],
+    ],
+    [
+      'field_name' => 'field_te_reference_product',
+      'easyjob_value' => $data['ReferenzenGebunden'],
     ],
   ];
   foreach ($mapping as $key => $item) {
@@ -413,6 +444,25 @@ function updateProductRelationships($product, $data, &$context) {
   }
 
   //field_te_cleaning_price => ReferenzenNormal
+}
+
+/**
+ * Add variations to product.
+ * @param Product $product the drupal product
+ * @param array $data the easyjob data
+ * @param array $context the batch context
+ */
+function updateProductVariations($product, $data, &$context) {
+  $variations = explode(',', $data['Farbvarianten']);
+  foreach ($variations as $key => $variation_id) {
+    $variation = fetchVariation($variation_id, FALSE);
+    if ($variation) {
+      $product->addVariation($variation);
+    }
+    else {
+      $context['results']['error']['relationships']++;
+    }
+  }
 }
 
 /**
@@ -459,7 +509,7 @@ function updateEntityRefenceProductField($product, $field_name, $easyjob_data, &
         $product->get($field_name)->appendItem(['target_id' => $reference->id()]);
       }
       else{
-        $context['results']['error']['products']++;
+        $context['results']['error']['relationships']++;
       }
 
     }
@@ -501,18 +551,18 @@ function fetchTerm($vid, $term_title, $term_field = 'name') {
  */
 function fetchAttributeValue($attribute_id, $label, $value) {
   $attribute = \Drupal\commerce_product\Entity\ProductAttribute::load($attribute_id);
-
-  if (!$attribute){
+  if (!$attribute) {
     $attribute = \Drupal\commerce_product\Entity\ProductAttribute::create([
       'id' => $attribute_id,
       'label' => $label,
     ]);
   }
-  $attribute_values = \Drupal\commerce_product\Entity\ProductAttributeValue::loadByProperties([
+  $storage = \Drupal::entityTypeManager()->getStorage('commerce_product_attribute_value');
+  $attribute_values = $storage->loadByProperties([
     'attribute' => $attribute_id,
     'name' => $value,
   ]);
-  
+
   $attribute_value = (!empty($attribute_values)) ? reset($attribute_values) : NULL;
   if (!$attribute_value) {
     $attribute_value = \Drupal\commerce_product\Entity\ProductAttributeValue::create([
