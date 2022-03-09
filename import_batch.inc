@@ -508,12 +508,19 @@ function fetchAttributeValue($attribute_id, $label, $value) {
       'label' => $label,
     ]);
   }
-
-  $attribute_value = \Drupal\commerce_product\Entity\ProductAttributeValue::create([
+  $attribute_values = \Drupal\commerce_product\Entity\ProductAttributeValue::loadByProperties([
     'attribute' => $attribute_id,
     'name' => $value,
   ]);
-  $attribute_value->save();
+  
+  $attribute_value = (!empty($attribute_values)) ? reset($attribute_values) : NULL;
+  if (!$attribute_value) {
+    $attribute_value = \Drupal\commerce_product\Entity\ProductAttributeValue::create([
+      'attribute' => $attribute_id,
+      'name' => $value,
+    ]);
+    $attribute_value->save();
+  }
 
   return $attribute_value;
 }
