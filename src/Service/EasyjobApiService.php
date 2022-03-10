@@ -193,6 +193,21 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
   /**
    * {@inheritdoc}
    */
+  public function getSingleProductDetail($product_id) {
+    if (empty($this->getToken())) {
+      throw new \Exception("Easyjob API not authorized.");
+    }
+    $response = $this->sendRequest('GET', self::SINGLE_PRODUCT_ENDPOINT . $product_id);
+    if ($response && $response->getStatusCode() == '200') {
+      $data = json_decode($response->getBody(), TRUE);
+      return $data;
+    }
+    return FALSE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function getProductsDetail($product_ids) {
     if (empty($this->getToken())) {
       throw new \Exception("Easyjob API not authorized.");

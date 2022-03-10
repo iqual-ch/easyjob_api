@@ -60,8 +60,7 @@ class EasyjobProductImportService {
     $timestamp = $this->config->get('timestamp');
     $date = date('Y-m-d\TH:i:s', $timestamp);
     $products_ids = $this->easyjob->getProductsEditedSince($date);
-    $products = $this->easyjob->getProductsDetail($products_ids);
-    return $products;
+    return $products_ids;
   }
 
   public function doDelete(){

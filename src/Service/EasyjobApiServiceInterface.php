@@ -17,6 +17,14 @@ interface EasyjobApiServiceInterface {
   public function getProductsEditedSince($date = null);
 
   /**
+   * Retrieve a single product data from easyjob.
+   * @param int $product_id
+   * @return array
+   */
+  public function getSingleProductDetail($product_id);
+
+  /**
+   * Retrieve multiple products data from easyjob
    * @param array $product_ids
    * @return array
    */

@@ -44,10 +44,15 @@ function _easyjob_api_import_products($products, $total, &$context) {
     }
     try {
         $product = process_product($products[$i], $context);
-        \Drupal::entityTypeManager()->getStorage('node')->resetCache([$product->id()]);
+        if ($product) {
+          \Drupal::entityTypeManager()->getStorage('commerce_product')->resetCache([$product->id()]);
+        }
+        else {
+          $context['results']['error']['products']++;
+        }
     } catch (\Exception $e) {
       \Drupal::logger('easyjob_api')->notice('error: ' . $e->getMessage());
-        $context['results']['error']['products']++;
+      $context['results']['error']['products']++;
     }
   }
 
@@ -91,8 +96,13 @@ function _easyjob_api_import_product_relationships($products, $total, &$context)
     }
     try {
       $product = process_product_relationships($products[$i], $context);
-      \Drupal::entityTypeManager()->getStorage('node')->resetCache([$product->id()]);
-      $context['results']['updated']['relationships']++;
+      if ($product) {
+        \Drupal::entityTypeManager()->getStorage('node')->resetCache([$product->id()]);
+        $context['results']['updated']['relationships']++;
+      }
+      else {
+        $context['results']['error']['relationships']++;
+      }
     } catch (\Exception $e) {
       \Drupal::logger('easyjob_api')->notice('error: ' . $e->getMessage());
       $context['results']['error']['relationships']++;
@@ -130,62 +140,66 @@ function _easyjob_api_finished_import($success, $results, $operations) {
 /**
  *
  */
-function process_product($product_data, &$context) {
+function process_product($product_id, &$context) {
 
-  $easyjob_id = $product_data['ID'];
-  $variation = fetchVariation($easyjob_id);
-  $product = fetchProduct($easyjob_id, $context);
-  $product->addVariation($variation);
+  $product_data = \Drupal::service('easyjob_api.client')->getSingleProductDetail($product_id);
+  if ($product_data) {
+    $easyjob_id = $product_data['ID'];
+    $variation = fetchVariation($easyjob_id);
+    $product = fetchProduct($easyjob_id, $context);
+    $product->addVariation($variation);
 
-  if (empty($variation->sku->value)) {
-    $variation->set('sku', $product->id() . '-' . $variation->id());
+    if (empty($variation->sku->value)) {
+      $variation->set('sku', $product->id() . '-' . $variation->id());
+    }
+
+    updateProductFields($product, $product_data);
+    updateVariationFields($variation, $product_data);
+
+    updateVariationTerms($variation, $product_data);
+    updateProductTerms($product, $product_data);
+
+    updateVariationAttributes($variation, $product_data);
+
+    $product->save();
+    $variation->save();
+
+    //Log
+    /* if (!empty($product_data['Bild'])) {
+      \Drupal::logger('easyjob_api_import')->notice('product with ID ' . $product_data['ID'] . ' has an image');
+    }
+    if (!empty($product_data['Anhaenge'])) {
+      \Drupal::logger('easyjob_api_import')->notice('product with ID ' . $product_data['ID'] . ' has an attachment');
+    } */
+    if (!empty($product_data['Farbvarianten'])) {
+      \Drupal::logger('easyjob_api_import')->notice('product with ID ' . $product_data['ID'] . ' has a variant');
+    }
+    /* if (!empty($product_data['ReferenzenNormal']) && count(explode(',', $product_data['ReferenzenNormal'])) > 1) {
+      \Drupal::logger('easyjob_api_import')->notice('product with ID ' . $product_data['ID'] . ' has more than one references');
+    } */
+
+    return $product;
   }
-
-  updateProductFields($product, $product_data);
-  updateVariationFields($variation, $product_data);
-
-  updateVariationTerms($variation, $product_data);
-  updateProductTerms($product, $product_data);
-
-  updateVariationAttributes($variation, $product_data);
-
-  $product->save();
-  $variation->save();
-
-  //Log
-  /* if (!empty($product_data['Bild'])) {
-    \Drupal::logger('easyjob_api_import')->notice('product with ID ' . $product_data['ID'] . ' has an image');
-  }
-  if (!empty($product_data['Anhaenge'])) {
-    \Drupal::logger('easyjob_api_import')->notice('product with ID ' . $product_data['ID'] . ' has an attachment');
-  } */
-  if (!empty($product_data['Farbvarianten'])) {
-    \Drupal::logger('easyjob_api_import')->notice('product with ID ' . $product_data['ID'] . ' has a variant');
-  }
-  /* if (!empty($product_data['ReferenzenNormal']) && count(explode(',', $product_data['ReferenzenNormal'])) > 1) {
-    \Drupal::logger('easyjob_api_import')->notice('product with ID ' . $product_data['ID'] . ' has more than one references');
-  } */
-
-  return $product;
+  return FALSE;
 }
 
 /**
  *
  */
-function process_product_relationships($product_data, &$context) {
-
-  $easyjob_id = $product_data['ID'];
-  $product = fetchProduct($easyjob_id);
-
-  updateProductRelationships($product, $product_data, $context);
-
-  if (!empty($product_data['Farbvarianten'])) {
-    updateProductVariations($product, $product_data, $context);
+function process_product_relationships($product_id, &$context) {
+  
+  $product_data = \Drupal::service('easyjob_api.client')->getSingleProductDetail($product_id);
+  if ($product_data) {
+    $easyjob_id = $product_data['ID'];
+    $product = fetchProduct($easyjob_id);
+    updateProductRelationships($product, $product_data, $context);
+    if (!empty($product_data['Farbvarianten'])) {
+      updateProductVariations($product, $product_data, $context);
+    }
+    $product->save();
+    return $product;
   }
-
-  $product->save();
-
-  return $product;
+  return FALSE;
 }
 
 /**
@@ -254,6 +268,11 @@ function updateProductFields($product, $data) {
     $product->set('field_te_item_number_intern', $data['Nummer']);
     $product->set('field_te_seo_text', $data['Beschreibung']);
     $product->set('field_te_additional_information', $data['Zusatzinformationen']);
+
+    // Missing fields -- See with Protonics
+    // youtube link
+    // Reference product amount
+    // quantity
 }
 
 /**
@@ -272,6 +291,12 @@ function updateVariationFields($variation, $data) {
     $variation->set('field_te_price_per_item', $price);
     $variation->set('field_te_voltage_v', $data['Scheinleistung']);
     $variation->set('field_te_effective_power_w', $data['Wirkleistung']);
+
+    // Missing fields -- See with Protonics
+    // weight
+    // quantity
+    // connector
+    // Price per single item
 }
 
 /**
