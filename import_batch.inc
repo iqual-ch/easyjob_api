@@ -43,7 +43,7 @@ function _easyjob_api_import_products($products, $total, &$context) {
       continue;
     }
     try {
-        $product = process_product($products[$i], $context);
+        $product = process_product($products[$i]['ID'], $context);
         if ($product) {
           \Drupal::entityTypeManager()->getStorage('commerce_product')->resetCache([$product->id()]);
         }
@@ -95,7 +95,7 @@ function _easyjob_api_import_product_relationships($products, $total, &$context)
       continue;
     }
     try {
-      $product = process_product_relationships($products[$i], $context);
+      $product = process_product_relationships($products[$i]['ID'], $context);
       if ($product) {
         \Drupal::entityTypeManager()->getStorage('node')->resetCache([$product->id()]);
         $context['results']['updated']['relationships']++;
@@ -171,9 +171,9 @@ function process_product($product_id, &$context) {
     if (!empty($product_data['Anhaenge'])) {
       \Drupal::logger('easyjob_api_import')->notice('product with ID ' . $product_data['ID'] . ' has an attachment');
     } */
-    if (!empty($product_data['Farbvarianten'])) {
+   /*  if (!empty($product_data['Farbvarianten'])) {
       \Drupal::logger('easyjob_api_import')->notice('product with ID ' . $product_data['ID'] . ' has a variant');
-    }
+    } */
     /* if (!empty($product_data['ReferenzenNormal']) && count(explode(',', $product_data['ReferenzenNormal'])) > 1) {
       \Drupal::logger('easyjob_api_import')->notice('product with ID ' . $product_data['ID'] . ' has more than one references');
     } */
