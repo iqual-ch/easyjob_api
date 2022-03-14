@@ -21,7 +21,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
 
   const EDITED_SINCE_ENDPOINT = '/api.json/custom/itemlist/?editedsince=';
 
-  const AVAILABILITY_ENDPOINT = '/api.json/Items/Avail/';
+  const AVAILABILITY_ENDPOINT = '/api.json/Custom/CalculateItem/';
 
   const SINGLE_PRODUCT_ENDPOINT = '/api.json/custom/itemdetails/';
 
@@ -34,6 +34,8 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
   const STARTDATE_PARAM = 'startdate';
 
   const FINISHDATE_PARAM = 'enddate';
+
+  const QUANTITY_PARAM = 'quantity';
 
   /**
    * @var EntityTypeManagerInterface
@@ -229,17 +231,24 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
   /**
    * {@inheritdoc}
    */
-  public function getProductAvailabilityForPeriod($product_id, $start, $end) {
+  public function getProductAvailabilityForPeriod($args) {
     if (empty($this->getToken())) {
       throw new \Exception("Easyjob API not authorized.");
     }
-    if (empty($start) || empty($end)) {
+    if (empty($args['product_id'])) {
+      throw new \Exception("Product ID is required.");
+    }
+    if (empty($args['start']) || empty($args['end'])) {
       throw new \Exception("Start and end dates are mandatory.");
     }
+    if (empty($args['quantity'])) {
+      throw new \Exception("Please provide a quantity.");
+    }
     $response = $this->sendRequest('GET',
-      self::AVAILABILITY_ENDPOINT . $product_id . '?' .
-      self::STARTDATE_PARAM . '=' . $start . '&' .
-      self::FINISHDATE_PARAM . '=' . $end
+      self::AVAILABILITY_ENDPOINT . $args['product_id'] . '?' .
+      self::STARTDATE_PARAM . '=' . $args['start'] . '&' .
+      self::FINISHDATE_PARAM . '=' . $args['end'] . '&' .
+      self::QUANTITY_PARAM . '=' . $args['quantity']
     );
     if ($response && $response->getStatusCode() == '200') {
       $data = json_decode($response->getBody(), TRUE);

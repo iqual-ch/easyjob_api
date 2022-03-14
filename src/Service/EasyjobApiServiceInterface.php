@@ -31,12 +31,15 @@ interface EasyjobApiServiceInterface {
   public function getProductsDetail($product_ids);
 
   /**
-   * @param int $product_id
-   * @param string $start
-   * @param string $end
+   * Retrieves Product Availability from given arguments
+   * @param array $args
+   *   An array containing the product_id, the quantity required,
+   *   the start and end date.
+   * 
    * @return array
+   *   An array containing the quantity available and the calculated price
    */
-  public function getProductAvailabilityForPeriod($product_id, $start, $end);
+  public function getProductAvailabilityForPeriod($args);
 
   /**
    *
