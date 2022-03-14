@@ -24,22 +24,22 @@ interface EasyjobApiServiceInterface {
   public function getSingleProductDetail($product_id);
 
   /**
-   * Retrieve multiple products data from easyjob
+   * Retrieve multiple products data from easyjob.
    * @param array $product_ids
    * @return array
    */
   public function getProductsDetail($product_ids);
 
   /**
-   * Retrieves Product Availability from given arguments
+   * Retrieves Product Availability from given arguments.
    * @param array $args
    *   An array containing the product_id, the quantity required,
    *   the start and end date.
-   * 
+   *
    * @return array
    *   An array containing the quantity available and the calculated price
    */
-  public function getProductAvailabilityForPeriod($args);
+  public function getProductAvailabilityForPeriod(array $args);
 
   /**
    *

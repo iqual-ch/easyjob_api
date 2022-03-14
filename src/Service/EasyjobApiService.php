@@ -244,7 +244,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
     if (empty($args['quantity'])) {
       throw new \Exception("Please provide a quantity.");
     }
-    $response = $this->sendRequest('GET',
+    $response = $this->sendRequest('POST',
       self::AVAILABILITY_ENDPOINT . $args['product_id'] . '?' .
       self::STARTDATE_PARAM . '=' . $args['start'] . '&' .
       self::FINISHDATE_PARAM . '=' . $args['end'] . '&' .
