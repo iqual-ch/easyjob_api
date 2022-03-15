@@ -196,6 +196,10 @@ function process_product_relationships($product_id, &$context) {
     if (!empty($product_data['Farbvarianten'])) {
       updateProductVariations($product, $product_data, $context);
     }
+    if (!empty($product_data['ReferenzenNormal'])) {
+      updateProductCleaningPrice($product, $product_data, $context);
+    }
+    
     $product->save();
     return $product;
   }
@@ -467,8 +471,6 @@ function updateProductRelationships($product, $data, &$context) {
   foreach ($mapping as $key => $item) {
     updateEntityRefenceProductField($product, $item['field_name'], $item['easyjob_value'], $context);
   }
-
-  //field_te_cleaning_price => ReferenzenNormal
 }
 
 /**
@@ -489,6 +491,34 @@ function updateProductVariations($product, $data, &$context) {
     }
   }
 }
+
+/**
+ * Link cleaning product to the product
+ * @param Product $product the drupal product
+ * @param array $data the easyjob data
+ * @param array $context the batch context
+ */
+function updateProductCleaningPrice($product, $data, &$context) {
+  $referenced_product_ids = explode(',', $data['ReferenzenNormal']);
+    //field_te_cleaning_price => ReferenzenNormal
+  foreach ($referenced_product_ids as $key => $easyjob_id) {
+    $results = \Drupal::entityTypeManager()->getStorage('commerce_product_variation')->loadByProperties([
+      'type' => 'te_product',
+      'field_te_item_number_easyjob' => $easyjob_id,
+    ]);
+
+    if (!empty($results)){
+      $cleaning_product = reset($results);
+      // TO DECIDE IF WE LINK THE PRODUCT OR THE PRICE ONLY
+      //$product->set('field_te_cleaning_price', $cleaning_product->id());
+      //$product->set('field_te_cleaning_price', $cleaning_product->get('field_te_price_per_item')->getValue();
+    }
+    else{
+      $context['results']['error']['relationships']++;
+    }
+  }
+}
+
 
 /**
  * Update a given referenceitem term field for a given entity with the easyjob value.
@@ -548,6 +578,10 @@ function updateEntityRefenceProductField($product, $field_name, $easyjob_data, &
  * @param string $term_field the term field (default: name)
  */
 function fetchTerm($vid, $term_title, $term_field = 'name') {
+  //Special case(s):
+  if ($term_title == 'Verleihartikel') {
+    $term_title = 'Verkaufsartikel';
+  }
   $results = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->loadByProperties([
     'vid' => $vid,
     $term_field => $term_title,
