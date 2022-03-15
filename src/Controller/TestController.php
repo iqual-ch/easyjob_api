@@ -156,4 +156,14 @@ class TestController extends ControllerBase {
     );
   }
 
+
+  public function checkCategories() {
+    $array = $this->easyjob->getShortListProducts();
+    $categories = [];
+    foreach($array as $key => $product) {
+      $categories[$product['Mutterwarengruppe']][] = $product['Warengruppe'];
+    }
+    print_r($categories);
+  }
+
 }

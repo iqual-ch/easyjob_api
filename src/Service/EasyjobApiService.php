@@ -19,6 +19,8 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
 
   const WEBSETTINGS_ENDPOINT = '/api.json/Common/GetWebSettings/';
 
+  const SHORTLIST_PRODUCT_ENDPOINT = '/api.json/Items/List/';
+
   const EDITED_SINCE_ENDPOINT = '/api.json/custom/itemlist/?editedsince=';
 
   const AVAILABILITY_ENDPOINT = '/api.json/Custom/CalculateItem/';
@@ -166,6 +168,25 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
 
     if ($response && $response->getStatusCode() == '200' ) {
       $msg = 'Successfully loaded user settings';
+      \Drupal::logger('easyjob_api')->notice($msg);
+      $data = json_decode($response->getBody(), TRUE);
+      return $data;
+    }
+    return FALSE;
+  }
+
+   /**
+   * {@inheritdoc}
+   */
+  public function getShortListProducts() {
+    if (empty($this->getToken())) {
+      throw new \Exception("Easyjob API not authorized.");
+    }
+
+    $response = $this->sendRequest('GET', self::SHORTLIST_PRODUCT_ENDPOINT);
+
+    if ($response && $response->getStatusCode() == '200' ) {
+      $msg = 'Succesfully retrieved products ids';
       \Drupal::logger('easyjob_api')->notice($msg);
       $data = json_decode($response->getBody(), TRUE);
       return $data;

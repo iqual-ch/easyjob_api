@@ -39,3 +39,11 @@ easyjob_api.test_create_project:
   methods:  [GET]
   requirements:
     _permission: 'administer easyjob api'
+easyjob_api.test_categories:
+  path: '/easyjob-api/test/categories'
+  defaults:
+    _controller: '\Drupal\easyjob_api\Controller\TestController::checkCategories'
+    _title: 'Easyjob API check Categories'
+  methods:  [GET]
+  requirements:
+    _permission: 'administer easyjob api'
