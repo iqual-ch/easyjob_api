@@ -33,6 +33,7 @@ function _easyjob_api_import_products($products, $total, &$context) {
     $context['results']['imported']['products'] = 0;
     $context['results']['updated']['products'] = 0;
     $context['results']['error']['products'] = 0;
+    $context['results']['missing']['categories'] = [];
   }
 
   $indexes = range($context['sandbox']['progress']['products'], min($context['sandbox']['progress']['products'] + 99, $context['sandbox']['max']['products']));
@@ -128,6 +129,12 @@ function _easyjob_api_finished_import($success, $results, $operations) {
   if (!empty($results['relationships'])) {
     $msg .= "\n" . 'Missing relationships: ' . $results['error']['relationships'];
   }
+  if (!empty($results['missing']['categories'])) {
+    $msg .= "\n" . 'Missing categories: ' . count($results['missing']['categories']);
+    foreach ($results['missing']['categories'] as $key => $cat) {
+      $msg .= "\n" . $cat;
+    }
+  }
   $msg .= "\n" . '======';
   \Drupal::logger('easyjob_api_import')->notice($msg);
   $config = \Drupal::getContainer()->get('config.factory')->getEditable('easyjob_api.settings');
@@ -162,7 +169,7 @@ function process_product($product_id, &$context) {
       updateVariationFields($variation, $product_data);
 
       updateVariationTerms($variation, $product_data);
-      updateProductTerms($product, $product_data);
+      updateProductTerms($product, $product_data, $context);
 
       updateVariationAttributes($variation, $product_data);
 
@@ -431,40 +438,24 @@ function updateVariationAttributes($variation, $data) {
  * Update product terms with easyjob values
  * @param Product $product the drupal product
  * @param array $data the easyjob data
+ * @param array $context the import context array
  */
-function updateProductTerms($product, $data) {
+function updateProductTerms($product, $data, &$context) {
 
-  if (!empty($data['Mutterwarengruppe'])) {
-    $product_haupt_category_id = fetchTerm('product_category', $data['Mutterwarengruppe']);
+  for ($i=0; $i<=3; $i++) {
+    if (!empty($data['Produktkategorie' . $i])) {
+      $product_category_id = fetchTerm('product_category', $data['Produktkategorie' . $i], FALSE);
+      if ($product_category_id) {
+        $product_category = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->load($product_category_id);
+        $product_category->save();
+        $product->get('field_te_product_category')->appendItem(['target_id' => $product_category_id]);
+      }
+      else {
+        // ADD TO LOG
+        $context['results']['missing']['categories'][] = $data['Produktkategorie' . $i];
+      }
+    }
   }
-  if (!empty($data['Warengruppe'])) {
-    $product_main_category_id = fetchTerm('product_category', $data['Warengruppe']);
-    $product_main_category = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->load($product_main_category_id);
-    $product_main_category->set('parent', $product_haupt_category_id);
-    $product_main_category->save();
-  }
-  if (!empty($data['Produktkategorie1'])) {
-    $product_category_id_1 = fetchTerm('product_category', $data['Produktkategorie1']);
-    $product_category_1 = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->load($product_category_id_1);
-    $product_category_1->set('parent', $product_main_category_id);
-    $product_category_1->save();
-    $product->get('field_te_product_category')->appendItem(['target_id' => $product_category_id_1]);
-  }
-  if (!empty($data['Produktkategorie2'])) {
-    $product_category_id_2 = fetchTerm('product_category', $data['Produktkategorie2']);
-    $product_category_2 = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->load($product_category_id_2);
-    $product_category_2->set('parent', $product_main_category_id);
-    $product_category_2->save();
-    $product->get('field_te_product_category')->appendItem(['target_id' => $product_category_id_2]);
-  }
-  if (!empty($data['Produktkategorie3'])) {
-    $product_category_id_3 = fetchTerm('product_category', $data['Produktkategorie3']);
-    $product_category_3 = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->load($product_category_id_3);
-    $product_category_3->set('parent', $product_main_category_id);
-    $product_category_3->save();
-    $product->get('field_te_product_category')->appendItem(['target_id' => $product_category_id_3]);
-  }
-
 }
 
 /**
@@ -596,12 +587,13 @@ function updateEntityRefenceProductField($product, $field_name, $easyjob_data, &
  * @param string $vid the vocabulary id
  * @param string $term_value the term value
  * @param string $term_field the term field (default: name)
+ * @param boolean $create wheter to create a new one or not
+ * 
+ * @return int|null 
+ *    the id of the term or null
  */
-function fetchTerm($vid, $term_title, $term_field = 'name') {
-  //Special case(s):
-  if ($term_title == 'Verleihartikel') {
-    $term_title = 'Verkaufsartikel';
-  }
+function fetchTerm($vid, $term_title, $term_field = 'name', $create = TRUE) {
+  $term = NULL;
   $results = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->loadByProperties([
     'vid' => $vid,
     $term_field => $term_title,
@@ -610,7 +602,7 @@ function fetchTerm($vid, $term_title, $term_field = 'name') {
   if (!empty($results)){
     $term = reset($results);
   }
-  else {
+  elseif ($create) {
     $term = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->create([
       'vid' => $vid,
       $term_field => $term_title,
@@ -618,7 +610,7 @@ function fetchTerm($vid, $term_title, $term_field = 'name') {
     );
     $term->save();
   }
-  return $term->id();
+  return ($term) ? $term->id() : NULL;
 }
 
 /**

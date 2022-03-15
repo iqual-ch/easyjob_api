@@ -161,9 +161,16 @@ class TestController extends ControllerBase {
     $array = $this->easyjob->getShortListProducts();
     $categories = [];
     foreach($array as $key => $product) {
-      $categories[$product['Mutterwarengruppe']][] = $product['Warengruppe'];
+      if (in_array($product['Category'], $categories[$product['CategoryParent']])) {
+        $categories[$product['CategoryParent']][] = $product['Category'];
+      }
     }
-    print_r($categories);
+    return new JsonResponse(
+      [
+        'status' => 'OK',
+        'categories' => $categories,
+      ],
+    );
   }
 
 }
