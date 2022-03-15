@@ -97,7 +97,7 @@ function _easyjob_api_import_product_relationships($products, $total, &$context)
     try {
       $product = process_product_relationships($products[$i]['ID'], $context);
       if ($product) {
-        \Drupal::entityTypeManager()->getStorage('node')->resetCache([$product->id()]);
+        \Drupal::entityTypeManager()->getStorage('commerce_product')->resetCache([$product->id()]);
         $context['results']['updated']['relationships']++;
       }
       else {
@@ -144,25 +144,32 @@ function process_product($product_id, &$context) {
 
   $product_data = \Drupal::service('easyjob_api.client')->getSingleProductDetail($product_id);
   if ($product_data) {
-    $easyjob_id = $product_data['ID'];
-    $variation = fetchVariation($easyjob_id);
-    $product = fetchProduct($easyjob_id, $context);
-    $product->addVariation($variation);
-
-    if (empty($variation->sku->value)) {
-      $variation->set('sku', $product->id() . '-' . $variation->id());
+    //special case for cleaning products
+    if ($product_data['Warengruppe'] == 'Reinigung') {
+      $product = addCleaningProductVariation($product_data);
     }
+    else {
+      $easyjob_id = $product_data['ID'];
+      $variation = fetchVariation($easyjob_id);
+      $product = fetchProduct($easyjob_id, $context);
+      $product->addVariation($variation);
 
-    updateProductFields($product, $product_data);
-    updateVariationFields($variation, $product_data);
+      if (empty($variation->sku->value)) {
+        $variation->set('sku', $product->id() . '-' . $variation->id());
+      }
 
-    updateVariationTerms($variation, $product_data);
-    updateProductTerms($product, $product_data);
+      updateProductFields($product, $product_data);
+      updateVariationFields($variation, $product_data);
 
-    updateVariationAttributes($variation, $product_data);
+      updateVariationTerms($variation, $product_data);
+      updateProductTerms($product, $product_data);
 
-    $product->save();
-    $variation->save();
+      updateVariationAttributes($variation, $product_data);
+
+      $product->save();
+      $variation->save();
+    }
+    
 
     //Log
     /* if (!empty($product_data['Bild'])) {
@@ -187,7 +194,6 @@ function process_product($product_id, &$context) {
  *
  */
 function process_product_relationships($product_id, &$context) {
-  
   $product_data = \Drupal::service('easyjob_api.client')->getSingleProductDetail($product_id);
   if ($product_data) {
     $easyjob_id = $product_data['ID'];
@@ -197,13 +203,31 @@ function process_product_relationships($product_id, &$context) {
       updateProductVariations($product, $product_data, $context);
     }
     if (!empty($product_data['ReferenzenNormal'])) {
-      updateProductCleaningPrice($product, $product_data, $context);
+      updateProductCleaningProduct($product, $product_data, $context);
     }
-    
     $product->save();
     return $product;
   }
   return FALSE;
+}
+
+/**
+ * Saves all cleaning products a variation of the cleaning product 9999 in Drupal.
+ * @param array $data the easyjob data
+ * @param array $context the import context
+ */
+function addCleaningProductVariation($data, &$context) {
+  $cleaning_product = fetchVariation($data['ID']);
+  if (empty($cleaning_product->sku->value)) {
+    $cleaning_product->set('sku', 9999 . '-' . $data['ID']);
+  }
+  updateVariationFields($cleaning_product, $data);
+  updateVariationTerms($cleaning_product, $data);
+  updateVariationAttributes($cleaning_product, $data);
+  $product = fetchProduct(9999, $context);
+  $product->addVariation($cleaning_product);
+  $product->save();
+  $cleaning_product->save();
 }
 
 /**
@@ -498,20 +522,16 @@ function updateProductVariations($product, $data, &$context) {
  * @param array $data the easyjob data
  * @param array $context the batch context
  */
-function updateProductCleaningPrice($product, $data, &$context) {
+function updateProductCleaningProduct($product, $data, &$context) {
   $referenced_product_ids = explode(',', $data['ReferenzenNormal']);
-    //field_te_cleaning_price => ReferenzenNormal
   foreach ($referenced_product_ids as $key => $easyjob_id) {
     $results = \Drupal::entityTypeManager()->getStorage('commerce_product_variation')->loadByProperties([
       'type' => 'te_product',
-      'field_te_item_number_easyjob' => $easyjob_id,
+      'field_te_main_number_easyjob' => $easyjob_id,
     ]);
-
     if (!empty($results)){
       $cleaning_product = reset($results);
-      // TO DECIDE IF WE LINK THE PRODUCT OR THE PRICE ONLY
-      //$product->set('field_te_cleaning_price', $cleaning_product->id());
-      //$product->set('field_te_cleaning_price', $cleaning_product->get('field_te_price_per_item')->getValue();
+      $product->set('field_te_cleaning_product', $cleaning_product->id());
     }
     else{
       $context['results']['error']['relationships']++;
