@@ -150,33 +150,30 @@ function _easyjob_api_finished_import($success, $results, $operations) {
 function process_product($product_id, &$context) {
 
   $product_data = \Drupal::service('easyjob_api.client')->getSingleProductDetail($product_id);
-  if ($product_data) {
-    //special case for cleaning products
-    if ($product_data['Warengruppe'] == 'Reinigung') {
-      $product = addCleaningProductVariation($product_data);
+  if ($product_data) {    
+    $type =  ($product_data['Warengruppe'] == 'Reinigung') ? 'te_cleaning_product' : 'te_product';
+    $easyjob_id = $product_data['ID'];
+    $variation = fetchVariation($easyjob_id, $type);
+    $product = ($type == 'te_cleaning_product') ? fetchProduct($easyjob_id, $type, $context) : fetchProduct(9999, $type, $context);
+    $product->addVariation($variation);
+    if (empty($variation->sku->value)) {
+      $variation->set('sku', $product->id() . '-' . $variation->id());
+    }
+    if ($type == 'te_cleaning_product') {
+      $variation->set('field_st_variation_title', $product_data['Titel']);
+      $price = ($data['Verbrauchsartikel']) ? $data['Vermietartikel'] :  $data['Verkaufspreis'];
+      $variation->set('field_te_price_per_item', $price);
     }
     else {
-      $easyjob_id = $product_data['ID'];
-      $variation = fetchVariation($easyjob_id);
-      $product = fetchProduct($easyjob_id, $context);
-      $product->addVariation($variation);
-
-      if (empty($variation->sku->value)) {
-        $variation->set('sku', $product->id() . '-' . $variation->id());
-      }
-
       updateProductFields($product, $product_data);
       updateVariationFields($variation, $product_data);
-
       updateVariationTerms($variation, $product_data);
       updateProductTerms($product, $product_data, $context);
-
       updateVariationAttributes($variation, $product_data);
-
-      $product->save();
-      $variation->save();
     }
-    
+
+    $product->save();
+    $variation->save();
 
     //Log
     /* if (!empty($product_data['Bild'])) {
@@ -204,7 +201,7 @@ function process_product_relationships($product_id, &$context) {
   $product_data = \Drupal::service('easyjob_api.client')->getSingleProductDetail($product_id);
   if ($product_data) {
     $easyjob_id = $product_data['ID'];
-    $product = fetchProduct($easyjob_id);
+    $product = fetchProduct($easyjob_id, 'te_product');
     updateProductRelationships($product, $product_data, $context);
     if (!empty($product_data['Farbvarianten'])) {
       updateProductVariations($product, $product_data, $context);
@@ -219,31 +216,13 @@ function process_product_relationships($product_id, &$context) {
 }
 
 /**
- * Saves all cleaning products a variation of the cleaning product 9999 in Drupal.
- * @param array $data the easyjob data
- * @param array $context the import context
- */
-function addCleaningProductVariation($data, &$context) {
-  $cleaning_product = fetchVariation($data['ID']);
-  if (empty($cleaning_product->sku->value)) {
-    $cleaning_product->set('sku', 9999 . '-' . $data['ID']);
-  }
-  updateVariationFields($cleaning_product, $data);
-  updateVariationTerms($cleaning_product, $data);
-  updateVariationAttributes($cleaning_product, $data);
-  $product = fetchProduct(9999, $context);
-  $product->addVariation($cleaning_product);
-  $product->save();
-  $cleaning_product->save();
-}
-
-/**
  * Fetch matching variation or create a new one
  * @param int $id the easyjob id
+ * @param string $type the variation type
  * @param boolean $create wheter to create one if it does not exist
  * @return ProductVariation|null $variation
  */
-function fetchVariation($id, $create = TRUE) {
+function fetchVariation($id, $type, $create = TRUE) {
     $results = \Drupal::entityTypeManager()->getStorage('commerce_product_variation')->loadByProperties([
       'type' => 'te_product',
       'field_te_main_number_easyjob' => $id,
@@ -267,10 +246,11 @@ function fetchVariation($id, $create = TRUE) {
 
 /**
  * Fetch matching variation or create a new one
- * @param int $id the easyjob id
+ * @param int $id the easyjob id$
+ * @param string $type the product type
  * @param array $context the import context array
  */
-function fetchProduct($id, &$context = []) {
+function fetchProduct($id, $type, &$context = []) {
     $results = \Drupal::entityTypeManager()->getStorage('commerce_product')->loadByProperties([
       'type' => 'te_product',
       'field_te_item_number_easyjob' => $id,
@@ -307,7 +287,6 @@ function updateProductFields($product, $data) {
     // Missing fields -- See with Protonics
     // youtube link
     // Reference product amount
-    // quantity
 }
 
 /**
@@ -326,12 +305,12 @@ function updateVariationFields($variation, $data) {
     $variation->set('field_te_price_per_item', $price);
     $variation->set('field_te_voltage_v', $data['Scheinleistung']);
     $variation->set('field_te_effective_power_w', $data['Wirkleistung']);
+    $variation->set('field_te_quantity', $data['Verpackungseinheit']);
+    $variation->set('field_te_unit', $data['Einheit']);
 
     // Missing fields -- See with Protonics
     // weight
-    // quantity
     // connector
-    // Price per single item
 }
 
 /**
@@ -358,7 +337,7 @@ function updateVariationTerms($variation, $data) {
       'vid' => 'material',
       'field_name' => 'field_te_material',
       'easyjob_name' => 'Material',
-      'multiple' => FALSE,
+      'multiple' => TRUE,
     ],
     [
       'vid' => 'source_of_energy',
@@ -412,7 +391,7 @@ function updateVariationTerms($variation, $data) {
       'vid' => 'purpose',
       'field_name' => 'field_te_purpose',
       'easyjob_name' => 'Verwendungszweck',
-      'multiple' => FALSE,
+      'multiple' => TRUE,
     ],
   ];
 
@@ -442,9 +421,9 @@ function updateVariationAttributes($variation, $data) {
  */
 function updateProductTerms($product, $data, &$context) {
 
-  for ($i=0; $i<=3; $i++) {
+  for ($i=1; $i<=3; $i++) {
     if (!empty($data['Produktkategorie' . $i])) {
-      $product_category_id = fetchTerm('product_category', $data['Produktkategorie' . $i], FALSE);
+      $product_category_id = fetchTerm('product_category', $data['Produktkategorie' . $i], 'name', FALSE);
       if ($product_category_id) {
         $product_category = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->load($product_category_id);
         $product_category->save();
@@ -497,7 +476,7 @@ function updateProductRelationships($product, $data, &$context) {
 function updateProductVariations($product, $data, &$context) {
   $variations = explode(',', $data['Farbvarianten']);
   foreach ($variations as $key => $variation_id) {
-    $variation = fetchVariation($variation_id, FALSE);
+    $variation = fetchVariation($variation_id, 'te_product', FALSE);
     if ($variation) {
       $product->addVariation($variation);
     }
@@ -588,8 +567,8 @@ function updateEntityRefenceProductField($product, $field_name, $easyjob_data, &
  * @param string $term_value the term value
  * @param string $term_field the term field (default: name)
  * @param boolean $create wheter to create a new one or not
- * 
- * @return int|null 
+ *
+ * @return int|null
  *    the id of the term or null
  */
 function fetchTerm($vid, $term_title, $term_field = 'name', $create = TRUE) {
