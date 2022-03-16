@@ -1,11 +1,10 @@
 <?php
 
 /**
+ * Batch import processing Easyjob products.
  * @file
  */
 
-use Drupal\Core\StringTranslation\TranslatableMarkup;
-use Drupal\Core\Database\Database;
 use Drupal\commerce_product\Entity\ProductVariation;
 use Drupal\commerce_product\Entity\Product;
 
@@ -148,20 +147,19 @@ function _easyjob_api_finished_import($success, $results, $operations) {
  *
  */
 function process_product($product_id, &$context) {
-
   $product_data = \Drupal::service('easyjob_api.client')->getSingleProductDetail($product_id);
-  if ($product_data) {    
-    $type =  ($product_data['Warengruppe'] == 'Reinigung') ? 'te_cleaning_product' : 'te_product';
+  if ($product_data) {
+    $type = ($product_data['Warengruppe'] == 'Reinigung') ? 'te_cleaning_product' : 'te_product';
     $easyjob_id = $product_data['ID'];
     $variation = fetchVariation($easyjob_id, $type);
-    $product = ($type == 'te_cleaning_product') ? fetchProduct($easyjob_id, $type, $context) : fetchProduct(9999, $type, $context);
+    $product = ($type == 'te_cleaning_product') ? fetchProduct(9999, $type, $context) : fetchProduct($easyjob_id, $type, $context);
     $product->addVariation($variation);
     if (empty($variation->sku->value)) {
       $variation->set('sku', $product->id() . '-' . $variation->id());
     }
     if ($type == 'te_cleaning_product') {
-      $variation->set('field_st_variation_title', $product_data['Titel']);
-      $price = ($data['Verbrauchsartikel']) ? $data['Vermietartikel'] :  $data['Verkaufspreis'];
+      $variation->set('title', $product_data['Titel']);
+      $price = ($product_data['Verbrauchsartikel']) ? $product_data['Vermietartikel'] : $product_data['Verkaufspreis'];
       $variation->set('field_te_price_per_item', $price);
     }
     else {
@@ -224,7 +222,7 @@ function process_product_relationships($product_id, &$context) {
  */
 function fetchVariation($id, $type, $create = TRUE) {
     $results = \Drupal::entityTypeManager()->getStorage('commerce_product_variation')->loadByProperties([
-      'type' => 'te_product',
+      'type' => $type,
       'field_te_main_number_easyjob' => $id,
     ]);
 
@@ -233,7 +231,7 @@ function fetchVariation($id, $type, $create = TRUE) {
     }
     else {
       if ($create) {
-        $variation = ProductVariation::create(['type' => 'te_product']);
+        $variation = ProductVariation::create(['type' => $type]);
         $variation->set('field_te_main_number_easyjob', $id);
         $variation->save();
       }
@@ -252,7 +250,7 @@ function fetchVariation($id, $type, $create = TRUE) {
  */
 function fetchProduct($id, $type, &$context = []) {
     $results = \Drupal::entityTypeManager()->getStorage('commerce_product')->loadByProperties([
-      'type' => 'te_product',
+      'type' => $type,
       'field_te_item_number_easyjob' => $id,
     ]);
 
@@ -262,7 +260,7 @@ function fetchProduct($id, $type, &$context = []) {
     }
     else {
       $product = Product::create([
-          'type' => 'te_product',
+          'type' => $type,
         ],
       );
       $product->set('field_te_item_number_easyjob', $id);
