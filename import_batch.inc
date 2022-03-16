@@ -16,7 +16,6 @@ function _easyjob_api_import_products($products, $total, &$context) {
     \Drupal::logger('easyjob_api_import')->notice('nothing to import');
     return;
   }
-  \Drupal::logger('easyjob_api_import')->notice('=== Start import ===');
 
   if (!isset($context['sandbox']['progress']['products'])) {
     $context['sandbox']['progress']['products'] = 0;
@@ -32,7 +31,7 @@ function _easyjob_api_import_products($products, $total, &$context) {
     $context['results']['imported']['products'] = 0;
     $context['results']['updated']['products'] = 0;
     $context['results']['error']['products'] = 0;
-    $context['results']['missing']['categories'] = [];
+    $context['results']['missing']['categories'] = ['total' => 0];
   }
 
   $indexes = range($context['sandbox']['progress']['products'], min($context['sandbox']['progress']['products'] + 99, $context['sandbox']['max']['products']));
@@ -128,10 +127,15 @@ function _easyjob_api_finished_import($success, $results, $operations) {
   if (!empty($results['relationships'])) {
     $msg .= "\n" . 'Missing relationships: ' . $results['error']['relationships'];
   }
-  if (!empty($results['missing']['categories'])) {
-    $msg .= "\n" . 'Missing categories: ' . count($results['missing']['categories']);
-    foreach ($results['missing']['categories'] as $key => $cat) {
-      $msg .= "\n" . $cat;
+  if ($results['missing']['categories']['total'] > 0) {
+    $msg .= "\n" . 'Missing categories: ' . $results['missing']['categories']['total'];
+    foreach ($results['missing']['categories'] as $parent => $categories) {
+      if ($parent != "total") {
+        $msg .= "\n" . '--- Parent category: ' . $parent . '---';
+        foreach ($categories as $cat) {
+          $msg .= "\n" . $cat;
+        }
+      }
     }
   }
   $msg .= "\n" . '======';
@@ -159,6 +163,7 @@ function process_product($product_id, &$context) {
     }
     if ($type == 'te_cleaning_product') {
       $variation->set('title', $product_data['Titel']);
+      $variation->set('field_st_variation_title', $product_data['Titel']);
       $price = ($product_data['Verbrauchsartikel']) ? $product_data['Vermietartikel'] : $product_data['Verkaufspreis'];
       $variation->set('field_te_price_per_item', $price);
     }
@@ -204,7 +209,7 @@ function process_product_relationships($product_id, &$context) {
     if (!empty($product_data['Farbvarianten'])) {
       updateProductVariations($product, $product_data, $context);
     }
-    if (!empty($product_data['ReferenzenNormal'])) {
+    if ($product_data['Warengruppe'] != "Reinigung" && !empty($product_data['ReferenzenNormal'])) {
       updateProductCleaningProduct($product, $product_data, $context);
     }
     $product->save();
@@ -281,6 +286,7 @@ function updateProductFields($product, $data) {
     $product->set('field_te_item_number_intern', $data['Nummer']);
     $product->set('field_te_seo_text', $data['Beschreibung']);
     $product->set('field_te_additional_information', $data['Zusatzinformationen']);
+    $product->set('field_te_quantity', $data['Verpackungseinheit']);
 
     // Missing fields -- See with Protonics
     // youtube link
@@ -293,6 +299,7 @@ function updateProductFields($product, $data) {
  * @param array $data the easyjob data
  */
 function updateVariationFields($variation, $data) {
+    $variation->set('title', $data['Titel']);
     $variation->set('field_st_variation_title', $data['Titel']);
     $variation->set('field_te_width', $data['Breite']);
     $variation->set('field_te_height', $data['Hoehe']);
@@ -429,7 +436,10 @@ function updateProductTerms($product, $data, &$context) {
       }
       else {
         // ADD TO LOG
-        $context['results']['missing']['categories'][] = $data['Produktkategorie' . $i];
+        if (empty($context['results']['missing']['categories'][$data['Warengruppe']]) || !in_array($data['Produktkategorie' . $i], $context['results']['missing']['categories'][$data['Warengruppe']])) {
+          $context['results']['missing']['categories'][$data['Warengruppe']][] = $data['Produktkategorie' . $i];
+          $context['results']['missing']['categories']['total']++;
+        }
       }
     }
   }
@@ -494,14 +504,14 @@ function updateProductCleaningProduct($product, $data, &$context) {
   $referenced_product_ids = explode(',', $data['ReferenzenNormal']);
   foreach ($referenced_product_ids as $key => $easyjob_id) {
     $results = \Drupal::entityTypeManager()->getStorage('commerce_product_variation')->loadByProperties([
-      'type' => 'te_product',
+      'type' => 'te_cleaning_product',
       'field_te_main_number_easyjob' => $easyjob_id,
     ]);
     if (!empty($results)){
       $cleaning_product = reset($results);
       $product->set('field_te_cleaning_product', $cleaning_product->id());
     }
-    else{
+    else {
       $context['results']['error']['relationships']++;
     }
   }
