@@ -162,10 +162,7 @@ function process_product($product_id, &$context) {
       $variation->set('sku', $product->id() . '-' . $variation->id());
     }
     if ($type == 'te_cleaning_product') {
-      $variation->set('title', $product_data['Titel']);
-      $variation->set('field_st_variation_title', $product_data['Titel']);
-      $price = ($product_data['Verbrauchsartikel']) ? $product_data['Vermietartikel'] : $product_data['Verkaufspreis'];
-      $variation->set('field_te_price_per_item', $price);
+      updateCleaningProductFields($variation, $product_data);
     }
     else {
       updateProductFields($product, $product_data);
@@ -203,17 +200,20 @@ function process_product($product_id, &$context) {
 function process_product_relationships($product_id, &$context) {
   $product_data = \Drupal::service('easyjob_api.client')->getSingleProductDetail($product_id);
   if ($product_data) {
-    $easyjob_id = $product_data['ID'];
-    $product = fetchProduct($easyjob_id, 'te_product');
-    updateProductRelationships($product, $product_data, $context);
-    if (!empty($product_data['Farbvarianten'])) {
-      updateProductVariations($product, $product_data, $context);
+    $type = ($product_data['Warengruppe'] == 'Reinigung') ? 'te_cleaning_product' : 'te_product';
+    if ($type == 'te_product') {
+      $easyjob_id = $product_data['ID'];
+      $product = fetchProduct($easyjob_id, 'te_product');
+      updateProductRelationships($product, $product_data, $context);
+      if (!empty($product_data['Farbvarianten'])) {
+        updateProductVariations($product, $product_data, $context);
+      }
+      if ($product_data['Warengruppe'] != "Reinigung" && !empty($product_data['ReferenzenNormal'])) {
+        updateProductCleaningProduct($product, $product_data, $context);
+      }
+      $product->save();
+      return $product;
     }
-    if ($product_data['Warengruppe'] != "Reinigung" && !empty($product_data['ReferenzenNormal'])) {
-      updateProductCleaningProduct($product, $product_data, $context);
-    }
-    $product->save();
-    return $product;
   }
   return FALSE;
 }
@@ -317,6 +317,21 @@ function updateVariationFields($variation, $data) {
     // weight
     // connector
 }
+
+/**
+ * Update cleaning product fields with easyjob values
+ * @param ProductVariation $variation the drupal cleaning product variation
+ * @param array $data the easyjob data
+ */
+function updateCleaningProductFields($variation, $data) {
+  $variation->set('title', $data['Titel']);
+  $variation->set('field_st_variation_title', $data['Titel']);
+  $price = ($data['Verbrauchsartikel']) ? $data['Vermietartikel'] :  $data['Verkaufspreis'];
+  $variation->set('field_te_price_per_item', $price);
+  $variation->set('field_te_quantity', $data['Verpackungseinheit']);
+  $variation->set('field_te_unit', $data['Einheit']);
+}
+
 
 /**
  * Update variation terms with easyjob values
@@ -509,7 +524,7 @@ function updateProductCleaningProduct($product, $data, &$context) {
     ]);
     if (!empty($results)){
       $cleaning_product = reset($results);
-      $product->set('field_te_cleaning_product', $cleaning_product->id());
+      $product->get('field_iq_commerce_required')->appendItem(['target_id' => $cleaning_product->id()]);
     }
     else {
       $context['results']['error']['relationships']++;

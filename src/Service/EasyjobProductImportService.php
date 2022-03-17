@@ -73,8 +73,8 @@ class EasyjobProductImportService {
   protected function getProductsToDelete() {
     $products_ids = array_column($this->easyjob->getProductsEditedSince(0), 'ID');
     $query = \Drupal::entityQuery('commerce_product')
-    ->condition('type', 'te_product')
-    ->condition('field_te_item_number_easyjob', $products_ids, 'NOT IN');
+      ->condition('type', 'te_product')
+      ->condition('field_te_item_number_easyjob', $products_ids, 'NOT IN');
     $results = $query->execute();
     return $results;
   }

@@ -323,12 +323,12 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
       // Using FormattableMarkup allows for the use of <pre/> tags, giving a more readable log item.
       $message = new FormattableMarkup('API connection error. Error details are as follows:<pre>@response</pre>', ['@response' => print_r(json_decode($response_info), TRUE)]);
       // Log the error
-      watchdog_exception('Remote API Connection', $error, $message);
+      \Drupal::logger('easyjob_api')->error('Remote API Connection', $error, $message);
     }
     // A non-Guzzle error occurred. The type of exception is unknown, so a generic log item is created.
     catch (\Exception $error) {
       // Log the error.
-      watchdog_exception('Remote API Connection', $error, t('An unknown error occurred while trying to connect to the remote API. This is not a Guzzle error, nor an error in the remote API, rather a generic local error ocurred. The reported error was @error', ['@error' => $error->getMessage()]));
+      \Drupal::logger('easyjob_api')->error('Remote API Connection', $error, t('An unknown error occurred while trying to connect to the remote API. This is not a Guzzle error, nor an error in the remote API, rather a generic local error ocurred. The reported error was @error', ['@error' => $error->getMessage()]));
     }
     return FALSE;
   }
