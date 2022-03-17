@@ -67,6 +67,7 @@ class EasyjobProductImportService {
     $product_ids_to_delete = $this->getProductsToDelete();
     $storage_handler = \Drupal::entityTypeManager()->getStorage('commerce_product');
     $products = $storage_handler->loadMultiple($product_ids_to_delete);
+    //to do: delete cleaning variations
     $storage_handler->delete($products);
   }
 

@@ -155,21 +155,21 @@ function process_product($product_id, &$context) {
   if ($product_data) {
     $type = ($product_data['Warengruppe'] == 'Reinigung') ? 'te_cleaning_product' : 'te_product';
     $easyjob_id = $product_data['ID'];
-    $variation = fetchVariation($easyjob_id, $type);
-    $product = ($type == 'te_cleaning_product') ? fetchProduct(9999, $type, $context) : fetchProduct($easyjob_id, $type, $context);
+    $variation = fetch_variation($easyjob_id, $type);
+    $product = ($type == 'te_cleaning_product') ? fetch_product(9999, $type, $context) : fetch_product($easyjob_id, $type, $context);
     $product->addVariation($variation);
     if (empty($variation->sku->value)) {
       $variation->set('sku', $product->id() . '-' . $variation->id());
     }
     if ($type == 'te_cleaning_product') {
-      updateCleaningProductFields($variation, $product_data);
+      update_cleaning_product_fields($variation, $product_data);
     }
     else {
-      updateProductFields($product, $product_data);
-      updateVariationFields($variation, $product_data);
-      updateVariationTerms($variation, $product_data);
-      updateProductTerms($product, $product_data, $context);
-      updateVariationAttributes($variation, $product_data);
+      update_product_fields($product, $product_data);
+      update_variation_fields($variation, $product_data);
+      update_variation_terms($variation, $product_data);
+      update_product_terms($product, $product_data, $context);
+      update_variation_attributes($variation, $product_data);
     }
 
     $product->save();
@@ -203,13 +203,13 @@ function process_product_relationships($product_id, &$context) {
     $type = ($product_data['Warengruppe'] == 'Reinigung') ? 'te_cleaning_product' : 'te_product';
     if ($type == 'te_product') {
       $easyjob_id = $product_data['ID'];
-      $product = fetchProduct($easyjob_id, 'te_product');
-      updateProductRelationships($product, $product_data, $context);
+      $product = fetch_product($easyjob_id, 'te_product');
+      update_product_relationships($product, $product_data, $context);
       if (!empty($product_data['Farbvarianten'])) {
-        updateProductVariations($product, $product_data, $context);
+        update_product_variations($product, $product_data, $context);
       }
       if ($product_data['Warengruppe'] != "Reinigung" && !empty($product_data['ReferenzenNormal'])) {
-        updateProductCleaningProduct($product, $product_data, $context);
+        update_cleaning_product($product, $product_data, $context);
       }
       $product->save();
       return $product;
@@ -225,7 +225,7 @@ function process_product_relationships($product_id, &$context) {
  * @param boolean $create wheter to create one if it does not exist
  * @return ProductVariation|null $variation
  */
-function fetchVariation($id, $type, $create = TRUE) {
+function fetch_variation($id, $type, $create = TRUE) {
     $results = \Drupal::entityTypeManager()->getStorage('commerce_product_variation')->loadByProperties([
       'type' => $type,
       'field_te_main_number_easyjob' => $id,
@@ -253,7 +253,7 @@ function fetchVariation($id, $type, $create = TRUE) {
  * @param string $type the product type
  * @param array $context the import context array
  */
-function fetchProduct($id, $type, &$context = []) {
+function fetch_product($id, $type, &$context = []) {
     $results = \Drupal::entityTypeManager()->getStorage('commerce_product')->loadByProperties([
       'type' => $type,
       'field_te_item_number_easyjob' => $id,
@@ -280,7 +280,7 @@ function fetchProduct($id, $type, &$context = []) {
  * @param Product $product the drupal product
  * @param array $data the easyjob data
  */
-function updateProductFields($product, $data) {
+function update_product_fields($product, $data) {
     $product->set('title', $data['Titel']);
     ($data['Publiziert']) ? $product->set('status', 1) : $product->set('status', 0);
     $product->set('field_te_item_number_intern', $data['Nummer']);
@@ -298,7 +298,7 @@ function updateProductFields($product, $data) {
  * @param ProductVariation $variation the drupal product variation
  * @param array $data the easyjob data
  */
-function updateVariationFields($variation, $data) {
+function update_variation_fields($variation, $data) {
     $variation->set('title', $data['Titel']);
     $variation->set('field_st_variation_title', $data['Titel']);
     $variation->set('field_te_width', $data['Breite']);
@@ -323,7 +323,7 @@ function updateVariationFields($variation, $data) {
  * @param ProductVariation $variation the drupal cleaning product variation
  * @param array $data the easyjob data
  */
-function updateCleaningProductFields($variation, $data) {
+function update_cleaning_product_fields($variation, $data) {
   $variation->set('title', $data['Titel']);
   $variation->set('field_st_variation_title', $data['Titel']);
   $price = ($data['Verbrauchsartikel']) ? $data['Vermietartikel'] :  $data['Verkaufspreis'];
@@ -338,7 +338,7 @@ function updateCleaningProductFields($variation, $data) {
  * @param ProductVariation $variation the drupal product variation
  * @param array $data the easyjob data
  */
-function updateVariationTerms($variation, $data) {
+function update_variation_terms($variation, $data) {
 
   $mapping = [
     [
@@ -416,7 +416,7 @@ function updateVariationTerms($variation, $data) {
   ];
 
   foreach ($mapping as $key => $item) {
-    updateEntityRefenceTermField($variation, $item, $data);
+    update_entity_reference_term_field($variation, $item, $data);
   }
 
 }
@@ -426,7 +426,7 @@ function updateVariationTerms($variation, $data) {
  * @param ProductVariation $variation the drupal product variation
  * @param array $data the easyjob data
  */
-function updateVariationAttributes($variation, $data) {
+function update_variation_attributes($variation, $data) {
   if (!empty($data['Farbe'])) {
     $color_attribute_value = fetchAttributeValue('te_color', 'Color', $data['Farbe']);
     $variation->set('attribute_te_color', $color_attribute_value);
@@ -439,11 +439,11 @@ function updateVariationAttributes($variation, $data) {
  * @param array $data the easyjob data
  * @param array $context the import context array
  */
-function updateProductTerms($product, $data, &$context) {
+function update_product_terms($product, $data, &$context) {
 
   for ($i=1; $i<=3; $i++) {
     if (!empty($data['Produktkategorie' . $i])) {
-      $product_category_id = fetchTerm('product_category', $data['Produktkategorie' . $i], 'name', FALSE);
+      $product_category_id = fetch_term('product_category', $data['Produktkategorie' . $i], 'name', FALSE);
       if ($product_category_id) {
         $product_category = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->load($product_category_id);
         $product_category->save();
@@ -466,7 +466,7 @@ function updateProductTerms($product, $data, &$context) {
  * @param array $data the easyjob data
  * @param array $context the batch context
  */
-function updateProductRelationships($product, $data, &$context) {
+function update_product_relationships($product, $data, &$context) {
   $mapping = [
     [
       'field_name' => 'field_te_additional_products',
@@ -486,7 +486,7 @@ function updateProductRelationships($product, $data, &$context) {
     ],
   ];
   foreach ($mapping as $key => $item) {
-    updateEntityRefenceProductField($product, $item['field_name'], $item['easyjob_value'], $context);
+    update_entity_reference_field($product, $item['field_name'], $item['easyjob_value'], $context);
   }
 }
 
@@ -496,10 +496,10 @@ function updateProductRelationships($product, $data, &$context) {
  * @param array $data the easyjob data
  * @param array $context the batch context
  */
-function updateProductVariations($product, $data, &$context) {
+function update_product_variations($product, $data, &$context) {
   $variations = explode(',', $data['Farbvarianten']);
   foreach ($variations as $key => $variation_id) {
-    $variation = fetchVariation($variation_id, 'te_product', FALSE);
+    $variation = fetch_variation($variation_id, 'te_product', FALSE);
     if ($variation) {
       $product->addVariation($variation);
     }
@@ -515,7 +515,7 @@ function updateProductVariations($product, $data, &$context) {
  * @param array $data the easyjob data
  * @param array $context the batch context
  */
-function updateProductCleaningProduct($product, $data, &$context) {
+function update_cleaning_product($product, $data, &$context) {
   $referenced_product_ids = explode(',', $data['ReferenzenNormal']);
   foreach ($referenced_product_ids as $key => $easyjob_id) {
     $results = \Drupal::entityTypeManager()->getStorage('commerce_product_variation')->loadByProperties([
@@ -539,18 +539,18 @@ function updateProductCleaningProduct($product, $data, &$context) {
  * @param array $mapping the mapping info for the given field
  * @param string $easyjob_data the easyjob data
  */
-function updateEntityRefenceTermField($entity, $mapping, $easyjob_data) {
+function update_entity_reference_term_field($entity, $mapping, $easyjob_data) {
   if (!empty($easyjob_data[$mapping['easyjob_name']])) {
     if ($mapping['multiple'] === TRUE) {
       $entity->set($mapping['field_name'], []);
       $values = explode(',', $easyjob_data[$mapping['easyjob_name']]);
       foreach ($values as $key => $value) {
-        $term_id = fetchTerm($mapping['vid'], $value);
+        $term_id = fetch_term($mapping['vid'], $value);
         $entity->get($mapping['field_name'])->appendItem(['target_id' => $term_id]);
       }
     }
     else {
-      $term_id = fetchTerm($mapping['vid'], $easyjob_data[$mapping['easyjob_name']]);
+      $term_id = fetch_term($mapping['vid'], $easyjob_data[$mapping['easyjob_name']]);
       $entity->set($mapping['field_name'], $term_id);
     }
   }
@@ -562,7 +562,7 @@ function updateEntityRefenceTermField($entity, $mapping, $easyjob_data) {
  * @param string $field_name the relationship field_name
  * @param string $easyjob_data the easyjob data
  */
-function updateEntityRefenceProductField($product, $field_name, $easyjob_data, &$context) {
+function update_entity_reference_field($product, $field_name, $easyjob_data, &$context) {
   $product->set($field_name, []);
   if (!empty($easyjob_data)) {
     $values = explode(',', $easyjob_data);
@@ -594,7 +594,7 @@ function updateEntityRefenceProductField($product, $field_name, $easyjob_data, &
  * @return int|null
  *    the id of the term or null
  */
-function fetchTerm($vid, $term_title, $term_field = 'name', $create = TRUE) {
+function fetch_term($vid, $term_title, $term_field = 'name', $create = TRUE) {
   $term = NULL;
   $results = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->loadByProperties([
     'vid' => $vid,
