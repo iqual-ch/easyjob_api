@@ -118,6 +118,91 @@ function _easyjob_api_import_product_relationships($products, $total, &$context)
 /**
  *
  */
+function _easyjob_api_delete_obsolete_products($product_ids, &$context) {
+  $storage_handler = \Drupal::entityTypeManager()->getStorage('commerce_product');
+  $products = $storage_handler->loadMultiple($product_ids);
+  //to do: delete cleaning variations
+  $storage_handler->delete($products);
+}
+
+/**
+ *
+ */
+function _easyjob_api_delete_obsolete_terms(&$context) {
+  $terms_to_delete = [];
+  $mapping = [
+    [
+      'vid' => 'form',
+      'field_name' => 'field_te_form',
+    ],
+    [
+      'vid' => 'line',
+      'field_name' => 'field_te_line',
+    ],
+    [
+      'vid' => 'material',
+      'field_name' => 'field_te_material',
+    ],
+    [
+      'vid' => 'source_of_energy',
+      'field_name' => 'field_te_source_of_energy',
+    ],
+    [
+      'vid' => 'product_status',
+      'field_name' => 'field_te_product_status',
+    ],
+    [
+      'vid' => 'style',
+      'field_name' => 'field_te_style',
+    ],
+    [
+      'vid' => 'season',
+      'field_name' => 'field_te_season',
+    ],
+    [
+      'vid' => 'occasion',
+      'field_name' => 'field_te_occasion',
+    ],
+    [
+      'vid' => 'motto',
+      'field_name' => 'field_te_motto',
+    ],
+    [
+      'vid' => 'furniture_attributes',
+      'field_name' => 'field_te_furniture_attributes',
+    ],
+    [
+      'vid' => 'gastro_attributes',
+      'field_name' => 'field_te_gastro_attributes',
+    ],
+    [
+      'vid' => 'purpose',
+      'field_name' => 'field_te_purpose',
+    ],
+  ];
+  foreach ($mapping as $item) {
+    $terms = Drupal::entityQuery('taxonomy_term')
+    ->condition('type', $item['vid'])
+    ->execute();
+    foreach ($terms as $term) {
+      $assignments = Drupal::entityQuery('commerce_product_variation')
+      ->condition($item['field_name'], $term->id())
+      ->count()
+      ->execute();
+      if ($assignments == 0) {
+        $terms_to_delete[] = $term->id();
+      }
+    }
+  }
+  
+  $storage_handler = \Drupal::entityTypeManager()->getStorage('taxonomy_term');
+  $terms = $storage_handler->loadMultiple($term_ids);
+  $storage_handler->delete($terms);
+}
+
+/**
+ *
+ */
 function _easyjob_api_finished_import($success, $results, $operations) {
   $msg = "\n" . '=== Import finished ===';
   if (!empty($results['products'])) {
@@ -217,6 +302,7 @@ function process_product_relationships($product_id, &$context) {
   }
   return FALSE;
 }
+
 
 /**
  * Fetch matching variation or create a new one
@@ -440,7 +526,7 @@ function update_variation_attributes($variation, $data) {
  * @param array $context the import context array
  */
 function update_product_terms($product, $data, &$context) {
-
+  $product->set('field_te_product_category', []);
   for ($i=1; $i<=3; $i++) {
     if (!empty($data['Produktkategorie' . $i])) {
       $product_category_id = fetch_term('product_category', $data['Produktkategorie' . $i], 'name', FALSE);
@@ -516,6 +602,7 @@ function update_product_variations($product, $data, &$context) {
  * @param array $context the batch context
  */
 function update_cleaning_product($product, $data, &$context) {
+  $product->set('field_iq_commerce_required', []);
   $referenced_product_ids = explode(',', $data['ReferenzenNormal']);
   foreach ($referenced_product_ids as $key => $easyjob_id) {
     $results = \Drupal::entityTypeManager()->getStorage('commerce_product_variation')->loadByProperties([
@@ -540,9 +627,13 @@ function update_cleaning_product($product, $data, &$context) {
  * @param string $easyjob_data the easyjob data
  */
 function update_entity_reference_term_field($entity, $mapping, $easyjob_data) {
+  if ($mapping['multiple'] === TRUE) {
+    $entity->set($mapping['field_name'], []);
+  }
+  else {
+    $entity->set($mapping['field_name'], '');
+  }
   if (!empty($easyjob_data[$mapping['easyjob_name']])) {
-    if ($mapping['multiple'] === TRUE) {
-      $entity->set($mapping['field_name'], []);
       $values = explode(',', $easyjob_data[$mapping['easyjob_name']]);
       foreach ($values as $key => $value) {
         $term_id = fetch_term($mapping['vid'], $value);

@@ -28,13 +28,20 @@ class EasyjobProductImportService {
     $operations = [];
 
     if ($total > 0) {
+      //First we import all edited data
       foreach (array_chunk($products, 100) as $batchId => $batch_products) {
         $operations[] = ['_easyjob_api_import_products', [$batch_products, $total]];
       }
+      //Then we update relationships
       foreach (array_chunk($products, 100) as $batchId => $batch_products) {
         $operations[] = ['_easyjob_api_import_product_relationships', [$batch_products, $total]];
       }
     }
+    // Then we delete all obsolete products
+    $operations[] = ['_easyjob_api_delete_obsolete_products', []];
+    // Finally we delete all obsolete terms
+    $operations[] = ['_easyjob_api_delete_obsolete_terms', [$this->getProductsToDelete()]];
+    
     return $operations;
   }
 
@@ -61,14 +68,6 @@ class EasyjobProductImportService {
     $date = date('Y-m-d\TH:i:s', $timestamp);
     $products_ids = $this->easyjob->getProductsEditedSince($date);
     return $products_ids;
-  }
-
-  public function doDelete(){
-    $product_ids_to_delete = $this->getProductsToDelete();
-    $storage_handler = \Drupal::entityTypeManager()->getStorage('commerce_product');
-    $products = $storage_handler->loadMultiple($product_ids_to_delete);
-    //to do: delete cleaning variations
-    $storage_handler->delete($products);
   }
 
   protected function getProductsToDelete() {
