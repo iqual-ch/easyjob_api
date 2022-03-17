@@ -315,20 +315,19 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
     try {
       $response = $this->httpClient->request($method, $url, $args);
       return $response;
-    } catch (GuzzleException $error) {
-      // Get the original response
-      $response = $error->getResponse();
-      // Get the info returned from the remote server.
-      $response_info = $response->getBody()->getContents();
+    } catch (\GuzzleHttp\Exception\GuzzleException $error) {
       // Using FormattableMarkup allows for the use of <pre/> tags, giving a more readable log item.
-      $message = new FormattableMarkup('API connection error. Error details are as follows:<pre>@response</pre>', ['@response' => print_r(json_decode($response_info), TRUE)]);
+      $message = new \Drupal\Component\Render\FormattableMarkup(
+        'API connection error. Error details are as follows:<pre>@response</pre>',
+        ['@response' => $error->getMessage()]
+      );
       // Log the error
-      \Drupal::logger('easyjob_api')->error('Remote API Connection', $error, $message);
+      \Drupal::logger('easyjob_api')->error('Remote API Connection', [], $message);
     }
     // A non-Guzzle error occurred. The type of exception is unknown, so a generic log item is created.
     catch (\Exception $error) {
       // Log the error.
-      \Drupal::logger('easyjob_api')->error('Remote API Connection', $error, t('An unknown error occurred while trying to connect to the remote API. This is not a Guzzle error, nor an error in the remote API, rather a generic local error ocurred. The reported error was @error', ['@error' => $error->getMessage()]));
+      \Drupal::logger('easyjob_api')->error('Remote API Connection', [], t('An unknown error occurred while trying to connect to the remote API. This is not a Guzzle error, nor an error in the remote API, rather a generic local error ocurred. The reported error was @error', ['@error' => $error->getMessage()]));
     }
     return FALSE;
   }
