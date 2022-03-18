@@ -135,6 +135,10 @@ function _easyjob_api_delete_obsolete_terms(&$context) {
   $terms_to_delete = [];
   $mapping = [
     [
+      'vid' => 'connector',
+      'field_name' => 'field_te_connector',
+    ],
+    [
       'vid' => 'form',
       'field_name' => 'field_te_form',
     ],
@@ -201,7 +205,7 @@ function _easyjob_api_delete_obsolete_terms(&$context) {
   }
 
   $storage_handler = \Drupal::entityTypeManager()->getStorage('taxonomy_term');
-  $terms = $storage_handler->loadMultiple($term_ids);
+  $terms = $storage_handler->loadMultiple($terms_to_delete);
   $storage_handler->delete($terms);
 }
 
