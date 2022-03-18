@@ -123,12 +123,15 @@ function _easyjob_api_delete_obsolete_products($product_ids, &$context) {
   $products = $storage_handler->loadMultiple($product_ids);
   //to do: delete cleaning variations
   $storage_handler->delete($products);
+  $context['results']['deleted']['products']['total'] = count($product_ids);
+  $context['results']['deleted']['products']['ids'] = $product_ids;
 }
 
 /**
  *
  */
 function _easyjob_api_delete_obsolete_terms(&$context) {
+  $context['results']['deleted']['terms']['total'] = 0;
   $terms_to_delete = [];
   $mapping = [
     [
@@ -182,19 +185,21 @@ function _easyjob_api_delete_obsolete_terms(&$context) {
   ];
   foreach ($mapping as $item) {
     $terms = Drupal::entityQuery('taxonomy_term')
-    ->condition('type', $item['vid'])
+    ->condition('vid', $item['vid'])
     ->execute();
     foreach ($terms as $term) {
       $assignments = Drupal::entityQuery('commerce_product_variation')
-      ->condition($item['field_name'], $term->id())
+      ->condition($item['field_name'], $term)
       ->count()
       ->execute();
       if ($assignments == 0) {
-        $terms_to_delete[] = $term->id();
+        $terms_to_delete[] = $term;
+        $context['results']['deleted']['terms']['total']++;
+        $context['results']['deleted']['terms'][$item['vid']][] = $term;
       }
     }
   }
-  
+
   $storage_handler = \Drupal::entityTypeManager()->getStorage('taxonomy_term');
   $terms = $storage_handler->loadMultiple($term_ids);
   $storage_handler->delete($terms);
@@ -206,7 +211,7 @@ function _easyjob_api_delete_obsolete_terms(&$context) {
 function _easyjob_api_finished_import($success, $results, $operations) {
   $msg = "\n" . '=== Import finished ===';
   if (!empty($results['products'])) {
-    $msg .= "\n" . 'Imported ' . $results['imported']['products'] . ' products and updated ' . $results['updated']['products'];
+    $msg .= "\n" . 'Imported ' . $results['imported']['products'] . ' products, updated ' . $results['updated']['products'] . ' and deleted ' . $results['deleted']['products']['total'] ;
     $msg .= "\n" . 'Errors: ' . $results['error']['products'];
   }
   if (!empty($results['relationships'])) {
@@ -219,6 +224,23 @@ function _easyjob_api_finished_import($success, $results, $operations) {
         $msg .= "\n" . '--- Parent category: ' . $parent . '---';
         foreach ($categories as $cat) {
           $msg .= "\n" . $cat;
+        }
+      }
+    }
+  }
+  if ($results['deleted']['products']['total'] > 0) {
+    $msg .= "\n" . 'Deleted products: ' . $results['deleted']['products']['total'];
+    foreach ($results['deleted']['products']['ids'] as $key => $id) {
+      $msg .= "\n" . $id;
+    }
+  }
+  if ($results['deleted']['terms']['total'] > 0) {
+    $msg .= "\n" . 'Deleted terms: ' . $results['deleted']['terms']['total'];
+    foreach ($results['deleted']['terms'] as $vid => $terms) {
+      if ($vid != "total") {
+        $msg .= "\n" . '--- Sector: ' . $vid . '---';
+        foreach ($terms as $term) {
+          $msg .= "\n" . $term;
         }
       }
     }
@@ -260,20 +282,6 @@ function process_product($product_id, &$context) {
     $product->save();
     $variation->save();
 
-    //Log
-    /* if (!empty($product_data['Bild'])) {
-      \Drupal::logger('easyjob_api_import')->notice('product with ID ' . $product_data['ID'] . ' has an image');
-    }
-    if (!empty($product_data['Anhaenge'])) {
-      \Drupal::logger('easyjob_api_import')->notice('product with ID ' . $product_data['ID'] . ' has an attachment');
-    } */
-   /*  if (!empty($product_data['Farbvarianten'])) {
-      \Drupal::logger('easyjob_api_import')->notice('product with ID ' . $product_data['ID'] . ' has a variant');
-    } */
-    /* if (!empty($product_data['ReferenzenNormal']) && count(explode(',', $product_data['ReferenzenNormal'])) > 1) {
-      \Drupal::logger('easyjob_api_import')->notice('product with ID ' . $product_data['ID'] . ' has more than one references');
-    } */
-
     return $product;
   }
   return FALSE;
@@ -294,7 +302,8 @@ function process_product_relationships($product_id, &$context) {
         update_product_variations($product, $product_data, $context);
       }
       if ($product_data['Warengruppe'] != "Reinigung" && !empty($product_data['ReferenzenNormal'])) {
-        update_cleaning_product($product, $product_data, $context);
+        $variation = fetch_variation($easyjob_id, 'te_product');
+        update_cleaning_product($variation, $product_data, $context);
       }
       $product->save();
       return $product;
@@ -398,10 +407,7 @@ function update_variation_fields($variation, $data) {
     $variation->set('field_te_effective_power_w', $data['Wirkleistung']);
     $variation->set('field_te_quantity', $data['Verpackungseinheit']);
     $variation->set('field_te_unit', $data['Einheit']);
-
-    // Missing fields -- See with Protonics
-    // weight
-    // connector
+    $variation->set('field_te_weight', $data['Weight']);
 }
 
 /**
@@ -498,6 +504,12 @@ function update_variation_terms($variation, $data) {
       'field_name' => 'field_te_purpose',
       'easyjob_name' => 'Verwendungszweck',
       'multiple' => TRUE,
+    ],
+    [
+      'vid' => 'connector',
+      'field_name' => 'field_te_connector',
+      'easyjob_name' => 'PowerConnection',
+      'multiple' => FALSE,
     ],
   ];
 
@@ -597,12 +609,12 @@ function update_product_variations($product, $data, &$context) {
 
 /**
  * Link cleaning product to the product
- * @param Product $product the drupal product
+ * @param ProductVariation $variation the drupal product variation
  * @param array $data the easyjob data
  * @param array $context the batch context
  */
-function update_cleaning_product($product, $data, &$context) {
-  $product->set('field_iq_commerce_required', []);
+function update_cleaning_product($variation, $data, &$context) {
+  $variation->set('field_iq_commerce_required', []);
   $referenced_product_ids = explode(',', $data['ReferenzenNormal']);
   foreach ($referenced_product_ids as $key => $easyjob_id) {
     $results = \Drupal::entityTypeManager()->getStorage('commerce_product_variation')->loadByProperties([
@@ -611,7 +623,7 @@ function update_cleaning_product($product, $data, &$context) {
     ]);
     if (!empty($results)){
       $cleaning_product = reset($results);
-      $product->get('field_iq_commerce_required')->appendItem(['target_id' => $cleaning_product->id()]);
+      $variation->get('field_iq_commerce_required')->appendItem(['target_id' => $cleaning_product->id()]);
     }
     else {
       $context['results']['error']['relationships']++;
@@ -634,6 +646,7 @@ function update_entity_reference_term_field($entity, $mapping, $easyjob_data) {
     $entity->set($mapping['field_name'], '');
   }
   if (!empty($easyjob_data[$mapping['easyjob_name']])) {
+    if ($mapping['multiple'] === TRUE) {
       $values = explode(',', $easyjob_data[$mapping['easyjob_name']]);
       foreach ($values as $key => $value) {
         $term_id = fetch_term($mapping['vid'], $value);

@@ -38,10 +38,10 @@ class EasyjobProductImportService {
       }
     }
     // Then we delete all obsolete products
-    $operations[] = ['_easyjob_api_delete_obsolete_products', []];
+    $operations[] = ['_easyjob_api_delete_obsolete_products', [$this->getProductsToDelete()]];
     // Finally we delete all obsolete terms
-    $operations[] = ['_easyjob_api_delete_obsolete_terms', [$this->getProductsToDelete()]];
-    
+    $operations[] = ['_easyjob_api_delete_obsolete_terms', []];
+
     return $operations;
   }
 
