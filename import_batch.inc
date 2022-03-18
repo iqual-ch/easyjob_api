@@ -192,11 +192,21 @@ function _easyjob_api_delete_obsolete_terms(&$context) {
     ->condition('vid', $item['vid'])
     ->execute();
     foreach ($terms as $term) {
-      $assignments = Drupal::entityQuery('commerce_product_variation')
+      $product_assignments = Drupal::entityQuery('commerce_product_variation')
       ->condition($item['field_name'], $term)
       ->count()
       ->execute();
-      if ($assignments == 0) {
+      if (entity_type_has_field('node', $item['field_name'])) {
+        $node_assignments = Drupal::entityQuery('node')
+        ->condition($item['field_name'], $term)
+        ->count()
+        ->execute();
+      }
+      else {
+        $node_assignments = 0;
+      }
+
+      if (($node_assignments + (int) $product_assignments) == 0) {
         $terms_to_delete[] = $term;
         $context['results']['deleted']['terms']['total']++;
         $context['results']['deleted']['terms'][$item['vid']][] = $term;
@@ -754,4 +764,29 @@ function fetchAttributeValue($attribute_id, $label, $value) {
   }
 
   return $attribute_value;
+}
+
+
+/**
+ * Check if an entity type has a field.
+ *
+ * @param string $entity_type
+ *   The entity type.
+ * @param string $field_name
+ *   The field name.
+ *
+ * @return bool
+ *   Returns a TRUE if the entity type has the field.
+ */
+function entity_type_has_field($entity_type = 'node', $field_name) {
+  $bundles = \Drupal::service('entity_type.bundle.info')->getBundleInfo($entity_type);
+
+  foreach ($bundles as $bundle => $label) {
+    $all_bundle_fields = \Drupal::service('entity_field.manager')->getFieldDefinitions($entity_type, $bundle);
+    if (isset($all_bundle_fields[$field_name])) {
+      return TRUE;
+    }
+  }
+
+  return FALSE;
 }
