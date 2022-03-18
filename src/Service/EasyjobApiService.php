@@ -29,6 +29,10 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
 
   const CREATE_PROJECT_ENDPOINT = '/api.json/custom/CreateProject/';
 
+  const GET_PROJECT_ENDPOINT = '/api.json/Projects/Details/';
+
+  const GET_JOB_ENDPOINT = '/api.json/Jobs/Details/';
+
   const PARENT_CATEGORY_PARAM = 'IdCategoryParent';
 
   const CATEGORY_PARAM = 'IdCategory';
@@ -295,6 +299,50 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
     $response = $this->sendRequest('POST',
       self::CREATE_PROJECT_ENDPOINT,
       $args,
+    );
+    if ($response && $response->getStatusCode() == '200') {
+      $data = json_decode($response->getBody(), TRUE);
+      return $data;
+    }
+    else {
+      throw new \Exception("An error occured.");
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getProject($id) {
+    if (empty($this->getToken())) {
+      throw new \Exception("Easyjob API not authorized.");
+    }
+    if (empty($id)) {
+      throw new \Exception("No project id.");
+    }
+    $response = $this->sendRequest('GET',
+      self::GET_PROJECT_ENDPOINT . $id,
+    );
+    if ($response && $response->getStatusCode() == '200') {
+      $data = json_decode($response->getBody(), TRUE);
+      return $data;
+    }
+    else {
+      throw new \Exception("An error occured.");
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getJob($id) {
+    if (empty($this->getToken())) {
+      throw new \Exception("Easyjob API not authorized.");
+    }
+    if (empty($id)) {
+      throw new \Exception("No job id.");
+    }
+    $response = $this->sendRequest('GET',
+      self::GET_JOB_ENDPOINT . $id
     );
     if ($response && $response->getStatusCode() == '200') {
       $data = json_decode($response->getBody(), TRUE);

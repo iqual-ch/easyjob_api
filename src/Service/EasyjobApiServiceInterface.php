@@ -42,11 +42,28 @@ interface EasyjobApiServiceInterface {
   public function getProductAvailabilityForPeriod(array $args);
 
   /**
-   *
+   * Creates a Project in easyjob via POST request.
    * @param array $data
+   *
+   * @return array
+   *   An array containing the JobID, the User Address ID and the Delivery Address ID.
+   */
+  public function createProject($data);
+
+  /**
+   * Retrieves Project Data.
+   * @param int $id
    *
    * @return mixed
    */
-  public function createProject($data);
+  public function getProject($id);
+
+  /**
+   * Retrieves Job Data.
+   * @param int $id
+   *
+   * @return mixed
+   */
+  public function getJob($id);
 
 }
