@@ -27,6 +27,8 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
 
   const SINGLE_PRODUCT_ENDPOINT = '/api.json/custom/itemdetails/';
 
+  const SINGLE_FILE_ENDPOINT = '/shortcuts/download/';
+
   const CREATE_PROJECT_ENDPOINT = '/api.json/custom/CreateProject/';
 
   const GET_PROJECT_ENDPOINT = '/api.json/Projects/Details/';
@@ -225,6 +227,21 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
       throw new \Exception("Easyjob API not authorized.");
     }
     $response = $this->sendRequest('GET', self::SINGLE_PRODUCT_ENDPOINT . $product_id);
+    if ($response && $response->getStatusCode() == '200') {
+      $data = json_decode($response->getBody(), TRUE);
+      return $data;
+    }
+    return FALSE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getSingleFileDetail($file_id) {
+    if (empty($this->getToken())) {
+      throw new \Exception("Easyjob API not authorized.");
+    }
+    $response = $this->sendRequest('GET', self::SINGLE_FILE_ENDPOINT . $file_id);
     if ($response && $response->getStatusCode() == '200') {
       $data = json_decode($response->getBody(), TRUE);
       return $data;

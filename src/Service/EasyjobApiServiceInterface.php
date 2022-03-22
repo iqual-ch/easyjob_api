@@ -24,6 +24,13 @@ interface EasyjobApiServiceInterface {
   public function getSingleProductDetail($product_id);
 
   /**
+   * Retrieve a single file data from easyjob.
+   * @param int $file_id
+   * @return array
+   */
+  public function getSingleFileDetail($file_id);
+
+  /**
    * Retrieve multiple products data from easyjob.
    * @param array $product_ids
    * @return array
