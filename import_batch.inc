@@ -424,6 +424,7 @@ function process_product_relationships($product_id, &$context) {
         $variation = fetch_variation($easyjob_id, 'te_product', FALSE);
         if ($variation) {
           update_cleaning_product($variation, $product_data, $context);
+          $variation->save();
         }
       }
       $product->save();
