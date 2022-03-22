@@ -39,6 +39,8 @@ class EasyjobProductImportService {
     }
     // Then we delete all obsolete products
     $operations[] = ['_easyjob_api_delete_obsolete_products', [$this->getProductsToDelete()]];
+    // The, we delete all obsolete attributes
+    $operations[] = ['_easyjob_api_delete_obsolete_attributes', []];
     // Finally we delete all obsolete terms
     $operations[] = ['_easyjob_api_delete_obsolete_terms', []];
 

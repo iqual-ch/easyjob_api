@@ -227,6 +227,34 @@ function _easyjob_api_delete_obsolete_terms(&$context) {
 /**
  *
  */
+function _easyjob_api_delete_obsolete_attributes(&$context) {
+  $context['results']['deleted']['attributes']['total'] = 0;
+  $attributes_values_to_delete = [];
+  $storage = \Drupal::entityTypeManager()->getStorage('commerce_product_attribute_value');
+  $attribute_values = $storage->loadByProperties([
+    'attribute' => 'te_color'
+  ]);
+  foreach ($attribute_values as $id => $value) {
+    $assignments = \Drupal::entityTypeManager()->getStorage('commerce_product_variation')
+    ->getQuery()
+    ->condition('attribute_te_color', $id)
+    ->count()
+    ->execute();
+    if ($assignments == 0) {
+      $attributes_values_to_delete[] = $value;
+    }
+  }
+  if (!empty($attributes_values_to_delete)) {
+    $context['results']['deleted']['attributes']['total'] = count($attributes_values_to_delete);
+    $context['results']['deleted']['attributes']['te_color'][] = $value->getName();
+    $storage->delete($attributes_values_to_delete);
+
+  }
+}
+
+/**
+ *
+ */
 function _easyjob_api_finished_import($success, $results, $operations) {
   $msg = "\n" . '=== Import finished ===';
   if (!empty($results['products'])) {
@@ -316,6 +344,17 @@ function _easyjob_api_finished_import($success, $results, $operations) {
       }
     }
   }
+  if ($results['deleted']['attributes']['total'] > 0) {
+    $msg .= "\n" . 'Deleted attributes: ' . $results['deleted']['attributes']['total'];
+    foreach ($results['deleted']['attributes'] as $vid => $attributes) {
+      if ($vid != "total") {
+        $msg .= "\n" . '--- Attribute: ' . $vid . '---';
+        foreach ($attributes as $name) {
+          $msg .= "\n" . $name;
+        }
+      }
+    }
+  }
   $msg .= "\n" . '======';
   \Drupal::logger('easyjob_api_import')->notice($msg);
   $config = \Drupal::getContainer()->get('config.factory')->getEditable('easyjob_api.settings');
@@ -331,7 +370,7 @@ function _easyjob_api_finished_import($success, $results, $operations) {
 function process_product($product_id, &$context) {
   $product_data = \Drupal::service('easyjob_api.client')->getSingleProductDetail($product_id);
   if ($product_data) {
-    $type = ($product_data['Warengruppe'] == 'Reinigung') ? 'te_cleaning_product' : 'te_product';
+    $type = ($product_data['EigeneNummer'] == '9999') ? 'te_cleaning_product' : 'te_product';
     $easyjob_id = $product_data['ID'];
     $variation = fetch_variation($easyjob_id, $type);
     $product = ($type == 'te_cleaning_product') ? fetch_product(9999, $type, $context) : fetch_product($easyjob_id, $type, $context);
@@ -348,7 +387,7 @@ function process_product($product_id, &$context) {
       update_variation_terms($variation, $product_data);
       update_product_terms($product, $product_data, $context);
       update_variation_attributes($variation, $product_data);
-      clean_variation_images($variation);
+      /* clean_variation_images($variation);
       clean_product_files_field($product, 'field_te_pdf_instructions');
       clean_product_files_field($product, 'field_te_pdf_safety_info');
       if ($product_data['Bild']) {
@@ -356,7 +395,7 @@ function process_product($product_id, &$context) {
       }
       if ($product_data['Anhaenge']) {
         update_product_files($product, $product_data, $context);
-      }
+      } */
     }
 
     $product->save();
@@ -464,7 +503,7 @@ function update_product_fields($product, $data) {
     $product->set('field_te_seo_text', $data['Beschreibung']);
     $product->set('field_te_additional_information', $data['Zusatzinformationen']);
     $product->set('field_te_quantity', $data['Verpackungseinheit']);
-    $price = ($data['Verbrauchsartikel']) ? $data['Vermietartikel'] :  $data['Verkaufspreis'];
+    $price = ($data['Verbrauchsartikel']) ? $data['Vermietartikel'] : $data['Verkaufspreis'];
     $product->set('field_te_price_per_single_item', $price);
 
     // Missing fields -- See with Protonics
