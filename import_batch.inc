@@ -87,6 +87,8 @@ function _easyjob_api_import_product_relationships($products, $total, &$context)
     $context['results']['progress']['relationships'] = 0;
     $context['results']['updated']['relationships'] = 0;
     $context['results']['error']['relationships'] = ['total' => 0];
+    $context['results']['error']['cleaning_products'] = ['total' => 0];
+    $context['results']['error']['variations'] = ['total' => 0];
   }
 
   $indexes = range($context['sandbox']['progress']['relationships'], min($context['sandbox']['progress']['relationships'] + 99, $context['sandbox']['max']['relationships']));
@@ -234,10 +236,54 @@ function _easyjob_api_finished_import($success, $results, $operations) {
   if ($results['error']['relationships']['total'] > 0) {
     $msg .= "\n" . 'Missing relationships: ' . $results['error']['relationships']['total'];
     foreach ($results['error']['relationships'] as $easyjob_id => $relationships) {
-      if ($parent != "total") {
+      if ($easyjob_id != "total") {
         $msg .= "\n" . '--- Product : ' . $easyjob_id . '---';
         foreach ($relationships as $product) {
           $msg .= "\n" . $product;
+        }
+      }
+    }
+  }
+  if ($results['error']['cleaning_products']['total'] > 0) {
+    $msg .= "\n" . 'Missing cleaning products: ' . $results['error']['cleaning_products']['total'];
+    foreach ($results['error']['cleaning_products'] as $easyjob_id => $cleaning_products) {
+      if ($easyjob_id != "total") {
+        $msg .= "\n" . '--- Product : ' . $easyjob_id . '---';
+        foreach ($cleaning_products as $product) {
+          $msg .= "\n" . $product;
+        }
+      }
+    }
+  }
+  if ($results['error']['variations']['total'] > 0) {
+    $msg .= "\n" . 'Missing variations: ' . $results['error']['variations']['total'];
+    foreach ($results['error']['variations'] as $easyjob_id => $variations) {
+      if ($easyjob_id != "total") {
+        $msg .= "\n" . '--- Product : ' . $easyjob_id . '---';
+        foreach ($variations as $variations) {
+          $msg .= "\n" . $variations;
+        }
+      }
+    }
+  }
+  if ($results['error']['files']['total'] > 0) {
+    $msg .= "\n" . 'Missing files: ' . $results['error']['files']['total'];
+    foreach ($results['error']['files'] as $easyjob_id => $files) {
+      if ($easyjob_id != "total") {
+        $msg .= "\n" . '--- Product : ' . $easyjob_id . '---';
+        foreach ($files as $file) {
+          $msg .= "\n" . $file;
+        }
+      }
+    }
+  }
+  if ($results['error']['images']['total'] > 0) {
+    $msg .= "\n" . 'Missing images: ' . $results['error']['images']['total'];
+    foreach ($results['error']['images'] as $easyjob_id => $images) {
+      if ($easyjob_id != "total") {
+        $msg .= "\n" . '--- Product : ' . $easyjob_id . '---';
+        foreach ($images as $image) {
+          $msg .= "\n" . $image;
         }
       }
     }
@@ -303,10 +349,14 @@ function process_product($product_id, &$context) {
       update_product_terms($product, $product_data, $context);
       update_variation_attributes($variation, $product_data);
       clean_variation_images($variation);
-      update_variation_images($variation, $product_data, $context);
       clean_product_files_field($product, 'field_te_pdf_instructions');
       clean_product_files_field($product, 'field_te_pdf_safety_info');
-      update_product_files($product, $product_data, $context);
+      if ($product_data['Bild']) {
+        update_variation_images($variation, $product_data, $context);
+      }
+      if ($product_data['Anhaenge']) {
+        update_product_files($product, $product_data, $context);
+      }
     }
 
     $product->save();
@@ -323,7 +373,7 @@ function process_product($product_id, &$context) {
 function process_product_relationships($product_id, &$context) {
   $product_data = \Drupal::service('easyjob_api.client')->getSingleProductDetail($product_id);
   if ($product_data) {
-    $type = ($product_data['Warengruppe'] == 'Reinigung') ? 'te_cleaning_product' : 'te_product';
+    $type = ($product_data['EigeneNummer'] == '9999') ? 'te_cleaning_product' : 'te_product';
     if ($type == 'te_product') {
       $easyjob_id = $product_data['ID'];
       $product = fetch_product($easyjob_id, 'te_product');
@@ -331,9 +381,11 @@ function process_product_relationships($product_id, &$context) {
       if (!empty($product_data['Farbvarianten'])) {
         update_product_variations($product, $product_data, $context);
       }
-      if ($product_data['Warengruppe'] != "Reinigung" && !empty($product_data['ReferenzenNormal'])) {
-        $variation = fetch_variation($easyjob_id, 'te_product');
-        update_cleaning_product($variation, $product_data, $context);
+      if (!empty($product_data['ReferenzenNormal'])) {
+        $variation = fetch_variation($easyjob_id, 'te_product', FALSE);
+        if ($variation) {
+          update_cleaning_product($variation, $product_data, $context);
+        }
       }
       $product->save();
       return $product;
@@ -412,6 +464,8 @@ function update_product_fields($product, $data) {
     $product->set('field_te_seo_text', $data['Beschreibung']);
     $product->set('field_te_additional_information', $data['Zusatzinformationen']);
     $product->set('field_te_quantity', $data['Verpackungseinheit']);
+    $price = ($data['Verbrauchsartikel']) ? $data['Vermietartikel'] :  $data['Verkaufspreis'];
+    $product->set('field_te_price_per_single_item', $price);
 
     // Missing fields -- See with Protonics
     // youtube link
@@ -630,7 +684,7 @@ function update_product_files($product, $data, &$context) {
   if (!empty($files_ids)) {
     foreach ($files_ids as $id) {
       if (!in_array($id, $images_ids)) {
-        $path = $this->easyjob->getSingleFileDetail($id);
+        $path = \Drupal::service('easyjob_api.client')->getSingleFileDetail($id);
         if ($path) {
           $file = system_retrieve_file($path, NULL, TRUE, FileSystemInterface::FILE_EXISTS_REPLACE);
           if ($file) {
@@ -670,7 +724,7 @@ function update_variation_images($variation, $data, &$context) {
   $images_ids = explode(',', $data['Bild']);
   if (!empty($images_ids)) {
     foreach ($images_ids as $id) {
-      $path = $this->easyjob->getSingleFileDetail($id);
+      $path = \Drupal::service('easyjob_api.client')->getSingleFileDetail($id);
       if ($path) {
         $file = system_retrieve_file($path, NULL, TRUE, FileSystemInterface::FILE_EXISTS_REPLACE);
         if ($file) {
@@ -711,8 +765,8 @@ function update_product_variations($product, $data, &$context) {
       $product->addVariation($variation);
     }
     else {
-      $context['results']['error']['relationships']['total']++;
-      $context['results']['error']['relationships'][$data['ID']][] = $variation_id;
+      $context['results']['error']['variations']['total']++;
+      $context['results']['error']['variations'][$data['ID']][] = $variation_id;
     }
   }
 }
@@ -724,6 +778,7 @@ function update_product_variations($product, $data, &$context) {
  * @param array $context the batch context
  */
 function update_cleaning_product($variation, $data, &$context) {
+  // REMOVE NEXT LINE IF THE CUSTOMER DECIDE TO USER THIS FIELD FOR OTHER PRODUCTS
   $variation->set('field_iq_commerce_required', []);
   $referenced_product_ids = explode(',', $data['ReferenzenNormal']);
   foreach ($referenced_product_ids as $key => $easyjob_id) {
@@ -736,8 +791,8 @@ function update_cleaning_product($variation, $data, &$context) {
       $variation->get('field_iq_commerce_required')->appendItem(['target_id' => $cleaning_product->id()]);
     }
     else {
-      $context['results']['error']['relationships']['total']++;
-      $context['results']['error']['relationships'][$data['ID']][] = $easyjob_id;
+      $context['results']['error']['cleaning_products']['total']++;
+      $context['results']['error']['cleaning_products'][$data['ID']][] = $easyjob_id;
     }
   }
 }
@@ -804,13 +859,13 @@ function update_entity_reference_field($product, $field_name, $easyjob_data, &$c
  * Delete all files attached to a product.
  * @param Product $product the drupal product
  * @param string $field_name the field to clean
- * 
+ *
  * @return void
  */
-function clean_product_files_field($product, $field_name) {
+function clean_product_files_field(Product $product, $field_name) {
   $storage_handler = \Drupal::entityTypeManager()->getStorage("media");
-  $files_ids = $product->get($field_name)->getValue(); 
-  $files = $storage_handler->loadMultiple($medias);
+  $files_ids = $product->get($field_name)->getValue();
+  $files = $storage_handler->loadMultiple($files_ids);
   $storage_handler->delete($files);
   $product->set($field_name, []);
 }
@@ -818,15 +873,15 @@ function clean_product_files_field($product, $field_name) {
 /**
  * Delete all images attached to a product variation.
  * @param ProductVariation $variation the drupal product variation
- * 
+ *
  * @return void
  */
-function clean_variation_images($variation) {
+function clean_variation_images(ProductVariation $variation) {
   $storage_handler = \Drupal::entityTypeManager()->getStorage("media");
-  $files_ids = $product->get($field_name)->getValue(); 
-  $files = $storage_handler->loadMultiple($medias);
+  $files_ids = $variation->get('field_iq_commerce_images')->getValue();
+  $files = $storage_handler->loadMultiple($files_ids);
   $storage_handler->delete($files);
-  $product->set($field_name, []);
+  $variation->set('field_iq_commerce_images', []);
 }
 
 /**
