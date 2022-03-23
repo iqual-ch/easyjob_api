@@ -504,7 +504,7 @@ function update_product_fields($product, $data) {
     $product->set('field_te_seo_text', $data['Beschreibung']);
     $product->set('field_te_additional_information', $data['Zusatzinformationen']);
     $product->set('field_te_quantity', $data['Verpackungseinheit']);
-    $price = ($data['Verbrauchsartikel']) ? $data['Vermietartikel'] : $data['Verkaufspreis'];
+    $price = ($data['Verkaufsartikel'] == TRUE) ? $data['Verkaufspreis'] : $data['Vermietartikel'];
     $product->set('field_te_price_per_single_item', $price);
 
     // Missing fields -- See with Protonics
@@ -525,7 +525,7 @@ function update_variation_fields($variation, $data) {
     $variation->set('field_te_depth', $data['Tiefe']);
     $variation->set('field_te_volume', $data['Volumen']);
     $variation->set('field_te_diameter', $data['Durchmesser']);
-    $price = ($data['Verbrauchsartikel']) ? $data['Vermietartikel'] :  $data['Verkaufspreis'];
+    $price = ($data['Verkaufsartikel'] == TRUE) ? $data['Verkaufspreis'] : $data['Vermietartikel'];
     $variation->set('field_te_price_per_item', $price);
     $variation->set('field_te_voltage_v', $data['Scheinleistung']);
     $variation->set('field_te_effective_power_w', $data['Wirkleistung']);
@@ -542,7 +542,7 @@ function update_variation_fields($variation, $data) {
 function update_cleaning_product_fields($variation, $data) {
   $variation->set('title', $data['Titel']);
   $variation->set('field_st_variation_title', $data['Titel']);
-  $price = ($data['Verbrauchsartikel']) ? $data['Vermietartikel'] :  $data['Verkaufspreis'];
+  $price = ($data['Verkaufsartikel'] == TRUE) ? $data['Verkaufspreis'] : $data['Vermietartikel'];
   $variation->set('field_te_price_per_item', $price);
   $variation->set('field_te_quantity', $data['Verpackungseinheit']);
   $variation->set('field_te_unit', $data['Einheit']);
@@ -822,17 +822,20 @@ function update_cleaning_product($variation, $data, &$context) {
   $variation->set('field_iq_commerce_required', []);
   $referenced_product_ids = explode(',', $data['ReferenzenNormal']);
   foreach ($referenced_product_ids as $key => $easyjob_id) {
-    $results = \Drupal::entityTypeManager()->getStorage('commerce_product_variation')->loadByProperties([
-      'type' => 'te_cleaning_product',
-      'field_te_main_number_easyjob' => $easyjob_id,
-    ]);
-    if (!empty($results)){
-      $cleaning_product = reset($results);
-      $variation->get('field_iq_commerce_required')->appendItem(['target_id' => $cleaning_product->id()]);
-    }
-    else {
-      $context['results']['error']['cleaning_products']['total']++;
-      $context['results']['error']['cleaning_products'][$data['ID']][] = $easyjob_id;
+    $product_data = \Drupal::service('easyjob_api.client')->getSingleProductDetail($easyjob_id);
+    if ($product_data['EigeneNummer'] == '9999') {
+      $results = \Drupal::entityTypeManager()->getStorage('commerce_product_variation')->loadByProperties([
+        'type' => 'te_cleaning_product',
+        'field_te_main_number_easyjob' => $easyjob_id,
+      ]);
+      if (!empty($results)){
+        $cleaning_product = reset($results);
+        $variation->get('field_iq_commerce_required')->appendItem(['target_id' => $cleaning_product->id()]);
+      }
+      else {
+        $context['results']['error']['cleaning_products']['total']++;
+        $context['results']['error']['cleaning_products'][$data['ID']][] = $easyjob_id;
+      }
     }
   }
 }
