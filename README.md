@@ -2,9 +2,8 @@
 
 Adds integration for the Easyjob.
 
-This is an API module only. Following modules use this to provide further functionality:
-
-* TO UPDATE
+# Projects using this module:
+- top-events: https://github.com/iqual-ch/top-events-sw-project
 
 ## Installation and basic usage
 
