@@ -33,3 +33,18 @@ $config['easyjob_api.settings']['base_url'] = 'http://host.docker.internal:8008'
 $config['easyjob_api.settings']['username'] = '%USERNAME_IN_LASTPASS%';
 $config['easyjob_api.settings']['password'] = '%PASSWORD_IN_LASTPASS%';
 ```
+
+The import use the last import date to determine which products have been edited since then.
+To import all products again set the timestamp to 0 in the api configuration or overwrite it in your settings.local.php file
+```
+$config['easyjob_api.settings']['timestamp'] = 0; 
+```
+
+## Troubleshooting
+If the initial import crashes due to mysql timeout or memory issue, you can try to add the following in your settings.local.php file
+```
+if (PHP_SAPI === 'cli') {
+  ini_set('memory_limit', '1024M');
+  $databases['default']['default']['init_commands'][] = 'SET wait_timeout = 4800';
+}
+```

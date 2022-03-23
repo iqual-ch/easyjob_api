@@ -1,6 +1,0 @@
-services:
-  easyjob_api.commands:
-    class: \Drupal\easyjob_api\Commands\EasyjobImportCommand
-    tags:
-      - { name: drush.command }
-    arguments: ["@easyjob_api.importer", "@logger.factory"]
