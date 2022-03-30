@@ -243,7 +243,13 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
     }
     $response = $this->sendRequest('GET', self::SINGLE_FILE_ENDPOINT . $file_id);
     if ($response && $response->getStatusCode() == '200') {
-      $data = json_decode($response->getBody(), TRUE);
+      $content_length = $response->getHeader('Content-Length')[0];
+      $stream = $response->getBody();
+      $file_data = $stream->read($content_length);
+      $data = [
+        'filename' => str_replace('attachment;filename=', '', $response->getHeader('content-disposition')[0]),
+        'content' => $file_data,
+      ];
       return $data;
     }
     return FALSE;
