@@ -3,7 +3,7 @@
 namespace Drupal\easyjob_api\Service;
 
 /**
- * Interface EasyjobApiServiceInterface
+ * Interface EasyjobApiServiceInterface.
  *
  * @package Drupal\easyjob_api
  */
@@ -11,34 +11,41 @@ interface EasyjobApiServiceInterface {
 
   /**
    * @param string $date
-   * The edited since date (ISO Format)
+   *   The edited since date (ISO Format)
    * @return array of product ids matching the given parameters
    */
-  public function getProductsEditedSince($date = null);
+  public function getProductsEditedSince($date = NULL);
 
   /**
    * Retrieve a single product data from easyjob.
+   *
    * @param int $product_id
+   *
    * @return array
    */
   public function getSingleProductDetail($product_id);
 
   /**
    * Retrieve a single file data from easyjob.
+   *
    * @param int $file_id
+   *
    * @return array
    */
   public function getSingleFileDetail($file_id);
 
   /**
    * Retrieve multiple products data from easyjob.
+   *
    * @param array $product_ids
+   *
    * @return array
    */
   public function getProductsDetail($product_ids);
 
   /**
    * Retrieves Product Availability from given arguments.
+   *
    * @param array $args
    *   An array containing the product_id, the quantity required,
    *   the start and end date.
@@ -50,6 +57,7 @@ interface EasyjobApiServiceInterface {
 
   /**
    * Creates a Project in easyjob via POST request.
+   *
    * @param array $data
    *
    * @return array
@@ -59,6 +67,7 @@ interface EasyjobApiServiceInterface {
 
   /**
    * Retrieves Project Data.
+   *
    * @param int $id
    *
    * @return mixed
@@ -67,6 +76,7 @@ interface EasyjobApiServiceInterface {
 
   /**
    * Retrieves Job Data.
+   *
    * @param int $id
    *
    * @return mixed

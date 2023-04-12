@@ -14,4 +14,3 @@ easyjob_api.settings:
     timestamp:
       type: string
       label: 'Last import timestamp'
-    

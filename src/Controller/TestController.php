@@ -2,13 +2,14 @@
 
 namespace Drupal\easyjob_api\Controller;
 
+use Drupal\commerce_order\Entity\Order;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\easyjob_api\Service\EasyjobApiService;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 /**
- * Test Controller to Test Easyjob API
+ * Test Controller to Test Easyjob API.
  */
 class TestController extends ControllerBase {
 
@@ -22,7 +23,7 @@ class TestController extends ControllerBase {
   /**
    * Undocumented function.
    *
-   * @param EasyjobApiService $easyjob
+   * @param \Drupal\easyjob_api\Service\EasyjobApiService $easyjob
    */
   public function __construct(EasyjobApiService $easyjob) {
     $this->easyjob = $easyjob;
@@ -45,7 +46,7 @@ class TestController extends ControllerBase {
    *
    */
   public function getWebsettings() {
-   $settings = $this->easyjob->getWebSettings();
+    $settings = $this->easyjob->getWebSettings();
     return new JsonResponse(
         [
           'status' => 'OK',
@@ -77,7 +78,7 @@ class TestController extends ControllerBase {
     $product_id = \Drupal::request()->query->get('product_id');
     $start = \Drupal::request()->query->get('start');
     $end = \Drupal::request()->query->get('end');
-    $stock = $this->easyjob->getProductAvailabilityForPeriod($product_id, $start, $end);
+    $stock = $this->easyjob->getProductAvailabilityForPeriod($product_id);
     return new JsonResponse(
       [
         'status' => 'OK',
@@ -90,7 +91,7 @@ class TestController extends ControllerBase {
    *
    */
   public function createProject() {
-    $order = \Drupal\commerce_order\Entity\Order::load(12);
+    $order = Order::load(12);
     $customer = $order->getCustomer();
     $profile_storage = \Drupal::entityTypeManager()->getStorage('profile');
     $customer_profile = $profile_storage->loadByUser($customer, 'customer');
@@ -143,10 +144,9 @@ class TestController extends ControllerBase {
     }
     $order_data['Items'] = $order_items;
 
-    //$data = '{"ID": "100000","ProjectName": "TEST - Projektname","StartDate": "2023-10-09T00:00:00","EndDate": "2023-10-11T00:00:00","CustomerComment": "TEST BESTELLUNG","PaymentAmount": 123.45,"PaymentMethod": "Kreditkarte","ProjectState": "0","Service": "0","CustomerAddress": {"Company": "TEST Firmenname","Name2": "TEST Firma Zusatz","Street": "TEST Straße","Street2": "TEST Adresszusatz","Zip": "TEST Postleitzahl","City": "TEST Ort","Fax": "TEST Faxnummer","Phone": "TEST Telefonnummer","EMail": "TEST E-Mail","WWWAdress": "TEST Webseite","Country": {"Caption": "TEST Land"},"PrimaryContact": {"FirstName": "TEST Vorname","Surname": "TEST Nachname"}},"DeliveryAddress": {"Company": "TEST Firmenname","Name2": "TEST Firma Zusatz","Street": "TEST Straße","Street2": "TEST Adresszusatz","Zip": "TEST Postleitzahl","City": "TEST Ort","Fax": "TEST Faxnummer","Phone": "TEST Telefonnummer","EMail": "TEST E-Mail","WWWAdress": "TEST Webseite","Country": {"Caption": "TEST Land"},"PrimaryContact": {"FirstName": "TEST Vorname","Surname": "TEST Nachname"}},"InvoiceAddress": {"Company": "TEST Firmenname","Name2": "TEST Firma Zusatz","Street": "TEST Straße","Street2": "TEST Adresszusatz","Zip": "TEST Postleitzahl","City": "TEST Ort","Fax": "TEST Faxnummer","Phone": "TEST Telefonnummer","EMail": "TEST E-Mail","WWWAdress": "TEST Webseite","Country": {"Caption": "TEST Land"},"PrimaryContact": {"FirstName": "TEST Vorname","Surname": "TEST Nachname"}},"Items": [{"ID": "23940","Quantity": 5,"Price": 23.5},{"ID": "50000","Quantity": 5,"Price": 0}]}';
-    //$array = json_decode($data, TRUE);
-    //$project = $this->easyjob->createProject($array);
-
+    // $data = '{"ID": "100000","ProjectName": "TEST - Projektname","StartDate": "2023-10-09T00:00:00","EndDate": "2023-10-11T00:00:00","CustomerComment": "TEST BESTELLUNG","PaymentAmount": 123.45,"PaymentMethod": "Kreditkarte","ProjectState": "0","Service": "0","CustomerAddress": {"Company": "TEST Firmenname","Name2": "TEST Firma Zusatz","Street": "TEST Straße","Street2": "TEST Adresszusatz","Zip": "TEST Postleitzahl","City": "TEST Ort","Fax": "TEST Faxnummer","Phone": "TEST Telefonnummer","EMail": "TEST E-Mail","WWWAdress": "TEST Webseite","Country": {"Caption": "TEST Land"},"PrimaryContact": {"FirstName": "TEST Vorname","Surname": "TEST Nachname"}},"DeliveryAddress": {"Company": "TEST Firmenname","Name2": "TEST Firma Zusatz","Street": "TEST Straße","Street2": "TEST Adresszusatz","Zip": "TEST Postleitzahl","City": "TEST Ort","Fax": "TEST Faxnummer","Phone": "TEST Telefonnummer","EMail": "TEST E-Mail","WWWAdress": "TEST Webseite","Country": {"Caption": "TEST Land"},"PrimaryContact": {"FirstName": "TEST Vorname","Surname": "TEST Nachname"}},"InvoiceAddress": {"Company": "TEST Firmenname","Name2": "TEST Firma Zusatz","Street": "TEST Straße","Street2": "TEST Adresszusatz","Zip": "TEST Postleitzahl","City": "TEST Ort","Fax": "TEST Faxnummer","Phone": "TEST Telefonnummer","EMail": "TEST E-Mail","WWWAdress": "TEST Webseite","Country": {"Caption": "TEST Land"},"PrimaryContact": {"FirstName": "TEST Vorname","Surname": "TEST Nachname"}},"Items": [{"ID": "23940","Quantity": 5,"Price": 23.5},{"ID": "50000","Quantity": 5,"Price": 0}]}';
+    // $array = json_decode($data, TRUE);
+    // $project = $this->easyjob->createProject($array);
     $project_ids = $this->easyjob->createProject($order_data);
     return new JsonResponse(
       [
@@ -156,11 +156,13 @@ class TestController extends ControllerBase {
     );
   }
 
-
+  /**
+   *
+   */
   public function checkCategories() {
     $array = $this->easyjob->getShortListProducts();
     $categories = [];
-    foreach($array as $key => $product) {
+    foreach ($array as $key => $product) {
       if (in_array($product['Category'], $categories[$product['CategoryParent']])) {
         $categories[$product['CategoryParent']][] = $product['Category'];
       }
