@@ -1,4 +1,4 @@
 services:
   easyjob_api.client:
     class: Drupal\easyjob_api\Service\EasyjobApiService
-    arguments: ['@entity_type.manager', '@config.factory', '@request_stack', '@http_client_factory']
+    arguments: ['@entity_type.manager', '@config.factory', '@request_stack', '@http_client_factory', '@logger.factory']

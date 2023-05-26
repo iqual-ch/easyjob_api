@@ -7,14 +7,18 @@ use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Http\ClientFactory;
+use Drupal\Core\Logger\LoggerChannelFactory;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Drupal\Core\StringTranslation\StringTranslationTrait;
 
 /**
- * Class EasyjobApiService.
+ * An interface with Easyjob allowing GET and POST operations.
  *
  * @package Drupal\Easyjob_Api
  */
 class EasyjobApiService implements EasyjobApiServiceInterface {
+
+  use StringTranslationTrait;
 
   public const TOKEN_ENDPOINT = '/token';
 
@@ -47,24 +51,36 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
   public const QUANTITY_PARAM = 'quantity';
 
   /**
+   * The entity type manager.
+   *
    * @var \Drupal\Core\Entity\EntityTypeManagerInterface
-   *   The entity type manager.
    */
   protected $entityTypeManager;
 
   /**
+   * The immutable entity clone settings configuration entity.
+   *
    * @var \Drupal\Core\Config\ImmutableConfig
-   *   The immutable entity clone settings configuration entity.
    */
   protected $config;
 
   /**
+   * The HTTP Client Factory.
+   *
    * @var \Drupal\Core\Http\ClientFactory
-   *   The HTTP Client Factory.
    */
-  protected $http_client_factory;
+  protected $httpClientFactory;
 
   /**
+   * The Logger channel Factory.
+   *
+   * @var \Drupal\Core\Logger\LoggerChannelFactory
+   */
+  protected $loggerChannelFactory;
+
+  /**
+   * The symfony request.
+   *
    * @var \Symfony\Component\HttpFoundation\Request
    */
   protected $request;
@@ -77,14 +93,16 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
   protected $httpClient;
 
   /**
+   * An array with credentials.
+   *
    * @var array
-   *   Array with credentials.
    */
   protected $auth;
 
   /**
+   * The API Token.
+   *
    * @var string
-   *   API Token
    */
   protected $token;
 
@@ -97,15 +115,24 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
    *   The config factory.
    * @param \Symfony\Component\HttpFoundation\RequestStack $request_stack
    *   The current request stack.
-   * @param \Drupal\Core\Http\ClientFactory $client_factory
+   * @param \Drupal\Core\Http\ClientFactory $httpClientFactory
    *   The http client factory.
+   * @param \Drupal\Core\Logger\LoggerChannelFactory $loggerChannelFactory
+   *   The logger channel factory.
    */
-  public function __construct(EntityTypeManagerInterface $entity_type_manager, ConfigFactoryInterface $config_factory, RequestStack $request_stack, ClientFactory $http_client_factory) {
+  public function __construct(
+    EntityTypeManagerInterface $entity_type_manager,
+    ConfigFactoryInterface $config_factory,
+    RequestStack $request_stack,
+    ClientFactory $httpClientFactory,
+    LoggerChannelFactory $loggerChannelFactory
+    ) {
     $this->entityTypeManager = $entity_type_manager;
     $this->request = $request_stack->getCurrentRequest();
     $this->config = $config_factory->get('easyjob_api.settings');
-    $this->http_client_factory = $http_client_factory;
-    $this->httpClient = $http_client_factory->fromOptions([
+    $this->httpClientFactory = $httpClientFactory;
+    $this->loggerChannelFactory = $loggerChannelFactory;
+    $this->httpClient = $httpClientFactory->fromOptions([
       'base_uri' => $this->config->get('base_url'),
     ]);
     if (empty($this->config->get('username')) || empty($this->config->get('password'))) {
@@ -126,8 +153,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
   }
 
   /**
-   * Retrieve Authentication Token and hydrate
-   * all further request headers.
+   * Retrieve Authentication Token and hydrate all further request headers.
    */
   public function generateToken() {
     if (empty($this->auth)) {
@@ -148,11 +174,11 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
     if ($response && $response->getStatusCode() == '200') {
       // Get token, hydrate service.
       $msg = 'token retrieved from easyjob, connecting...';
-      \Drupal::logger('easyjob_api')->notice($msg);
+      $this->loggerChannelFactory->get('easyjob_api')->notice($msg);
       $data = json_decode($response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
 
       $this->token = $data['access_token'];
-      $this->httpClient = $this->http_client_factory->fromOptions([
+      $this->httpClient = $this->httpClientFactory->fromOptions([
         'base_uri' => $this->config->get('base_url'),
         'headers' => [
           'Authorization' => 'Bearer ' . $this->token,
@@ -175,7 +201,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
 
     if ($response && $response->getStatusCode() == '200') {
       $msg = 'Successfully loaded user settings';
-      \Drupal::logger('easyjob_api')->notice($msg);
+      $this->loggerChannelFactory->get('easyjob_api')->notice($msg);
       $data = json_decode($response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
       return $data;
     }
@@ -194,7 +220,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
 
     if ($response && $response->getStatusCode() == '200') {
       $msg = 'Succesfully retrieved products ids';
-      \Drupal::logger('easyjob_api')->notice($msg);
+      $this->loggerChannelFactory->get('easyjob_api')->notice($msg);
       $data = json_decode($response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
       return $data;
     }
@@ -213,7 +239,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
 
     if ($response && $response->getStatusCode() == '200') {
       $msg = 'Succesfully retrieved products ids';
-      \Drupal::logger('easyjob_api')->notice($msg);
+      $this->loggerChannelFactory->get('easyjob_api')->notice($msg);
       $data = json_decode($response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
       return $data;
     }
@@ -266,7 +292,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
 
     $products = [];
 
-    foreach ($product_ids as $key => $row) {
+    foreach ($product_ids as $row) {
       $response = $this->sendRequest('GET', self::SINGLE_PRODUCT_ENDPOINT . $row['ID']);
       if ($response && $response->getStatusCode() == '200') {
         $data = json_decode($response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
@@ -383,27 +409,34 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
    * @param string $method
    *   GET|POST.
    * @param string $url
+   *   The API endpoint.
    * @param array $args
-   *   custom headers, form_params, data.
+   *   Custom headers, form_params, data.
    */
-  protected function sendRequest($method, $url, $args = []) {
+  protected function sendRequest($method, $url, array $args = []) {
     try {
       $response = $this->httpClient->request($method, $url, $args);
       return $response;
     }
     catch (GuzzleException $error) {
-      // Using FormattableMarkup allows for the use of <pre/> tags, giving a more readable log item.
+      /*
+       * Using FormattableMarkup allows for the use of <pre/> tags,
+       * giving a more readable log item.
+       */
       $message = new FormattableMarkup(
         'API connection error. Error details are as follows:<pre>@response</pre>',
         ['@response' => $error->getMessage()]
           );
       // Log the error.
-      \Drupal::logger('easyjob_api')->error('Remote API Connection', [], $message);
+      $this->loggerChannelFactory->get('easyjob_api')->error('Remote API Connection', [], $message);
     }
-    // A non-Guzzle error occurred. The type of exception is unknown, so a generic log item is created.
+    /*
+     * A non-Guzzle error occurred. T
+     * The type of exception is unknown, so a generic log item is created.
+     */
     catch (\Exception $error) {
       // Log the error.
-      \Drupal::logger('easyjob_api')->error('Remote API Connection', [], t('An unknown error occurred while trying to connect to the remote API. This is not a Guzzle error, nor an error in the remote API, rather a generic local error ocurred. The reported error was @error', ['@error' => $error->getMessage()]));
+      $this->loggerChannelFactory->get('easyjob_api')->error('Remote API Connection', [], $this->t('An unknown error occurred while trying to connect to the remote API. This is not a Guzzle error, nor an error in the remote API, rather a generic local error ocurred. The reported error was @error', ['@error' => $error->getMessage()]));
     }
     return FALSE;
   }

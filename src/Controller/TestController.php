@@ -2,11 +2,12 @@
 
 namespace Drupal\easyjob_api\Controller;
 
-use Drupal\commerce_order\Entity\Order;
 use Drupal\Core\Controller\ControllerBase;
+use Drupal\Core\Entity\EntityTypeManager;
 use Drupal\easyjob_api\Service\EasyjobApiService;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * Test Controller to Test Easyjob API.
@@ -21,29 +22,51 @@ class TestController extends ControllerBase {
   protected $easyjob = NULL;
 
   /**
-   * Undocumented function.
+   * Request Stack Service.
+   *
+   * @var \Symfony\Component\HttpFoundation\RequestStack
+   */
+  protected $requestStack = NULL;
+
+  /**
+   * Entity Type Manager service.
+   *
+   * @var \Drupal\Core\Entity\EntityTypeManager
+   */
+  protected $entityTypeManager = NULL;
+
+  /**
+   * Construct a new TestController object.
    *
    * @param \Drupal\easyjob_api\Service\EasyjobApiService $easyjob
+   *   The Easyjob service.
+   * @param \Symfony\Component\HttpFoundation\RequestStack $requestStack
+   *   The Symfony Request Stack.
+   * @param \Drupal\Core\Entity\EntityTypeManager $entityTypeManager
+   *   The Entity Manager Service.
    */
-  public function __construct(EasyjobApiService $easyjob) {
+  public function __construct(EasyjobApiService $easyjob, RequestStack $requestStack, EntityTypeManager $entityTypeManager) {
     $this->easyjob = $easyjob;
+    $this->requestStack = $requestStack;
+    $this->entityTypeManager = $entityTypeManager;
   }
 
   /**
-   * Undocumented function.
+   * Instanciate a TestController object with dependencies.
    *
    * @param \Symfony\Component\DependencyInjection\ContainerInterface $container
-   *
-   * @return void
+   *   The Dependency Injection Container.
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('easyjob_api.client')
+      $container->get('easyjob_api.client'),
+      $container->get('request_stack'),
+      $container->get('entity_type.manager')
     );
   }
 
   /**
-   *
+   * Get the Websettings from Eaysjob Tool.
    */
   public function getWebsettings() {
     $settings = $this->easyjob->getWebSettings();
@@ -56,10 +79,10 @@ class TestController extends ControllerBase {
   }
 
   /**
-   *
+   * Get all products edited since provided timestamp.
    */
   public function getProductsEditedSince() {
-    $timestamp = \Drupal::request()->query->get('timestamp');
+    $timestamp = $this->requestStack->getCurrentRequest()->query->get('timestamp');
     $date = date('Y-m-d\TH:i:s', $timestamp);
     $products_ids = $this->easyjob->getProductsEditedSince($date);
     $products = $this->easyjob->getProductsDetail($products_ids);
@@ -72,13 +95,21 @@ class TestController extends ControllerBase {
   }
 
   /**
-   *
+   * Get the availability for a given product on a given period of time.
    */
   public function getProductAvailability() {
-    $product_id = \Drupal::request()->query->get('product_id');
-    $start = \Drupal::request()->query->get('start');
-    $end = \Drupal::request()->query->get('end');
-    $stock = $this->easyjob->getProductAvailabilityForPeriod($product_id);
+    $product_id = $this->requestStack->getCurrentRequest()->query->get('product_id');
+    $start = $this->requestStack->getCurrentRequest()->query->get('start');
+    $end = $this->requestStack->getCurrentRequest()->query->get('end');
+    $quantity = $this->requestStack->getCurrentRequest()->query->get('quantity');
+    $stock = $this->easyjob->getProductAvailabilityForPeriod(
+      [
+        'product_id' => $product_id,
+        'start' => $start,
+        'end' => $end,
+        'quantity' => $quantity,
+      ]
+    );
     return new JsonResponse(
       [
         'status' => 'OK',
@@ -88,65 +119,58 @@ class TestController extends ControllerBase {
   }
 
   /**
-   *
+   * Create an order (project) in the Easyjob Tool.
    */
   public function createProject() {
-    $order = Order::load(12);
-    $customer = $order->getCustomer();
-    $profile_storage = \Drupal::entityTypeManager()->getStorage('profile');
-    $customer_profile = $profile_storage->loadByUser($customer, 'customer');
-    $address = $customer_profile->get('address')->getValue()[0];
-    $service = ($order->get('field_te_shipping_method')->target_id == 1) ? "2" : "0";
-    $payment_method = ($order->getData('offer')) ? NULL : 'Kreditkarte';
-    $state = ($order->getData('offer')) ? "0" : "1";
+    $startDate = date('Y-m-d\TH:i:s', strtotime('+1 year'));
+    $endDate = date('Y-m-d\TH:i:s', strtotime('+1 year +1 day'));
     $order_data = [
-      'ID' => $order->getOrderNumber(),
-      'ProjectName' => $order->field_te_event_name->value,
-      'StartDate' => $order->get('field_te_rent_dates')->getValue()[0]['value'],
-      'EndDate' => $order->get('field_te_rent_dates')->getValue()[0]['end_value'],
-      'CustomerComment' => $order->field_iq_commerce_comment->value,
-      'PaymentAmount' => floatval(number_format($order->getTotalPrice()->getNumber(), 2)),
-      'PaymentMethod' => $payment_method,
-      'ProjectState' => $state,
-      'Service' => $service,
+      'ID' => '100000',
+      'ProjectName' => 'TEST - Projektname',
+      'StartDate' => $startDate,
+      'EndDate' => $endDate,
+      'CustomerComment' => 'TEST BESTELLUNG',
+      'PaymentAmount' => 123.45,
+      'PaymentMethod' => 'Kreditkarte',
+      'ProjectState' => '0',
+      'Service' => '0',
     ];
 
     $customer_address = [
-      'Company' => $address['organization'],
-      'Name2' => '',
-      'Street' => $address['address_line1'],
-      'Street2' => $address['address_line2'],
-      'Zip' => $address['postal_code'],
-      'City' => $address['locality'],
+      'Company' => 'TEST Firmenname',
+      'Name2' => 'TEST Firma Zusatz',
+      'Street' => 'TEST Straße',
+      'Street2' => 'TEST Adresse Zusatz',
+      'Zip' => 'TEST Zip',
+      'City' => 'TEST City',
       'Fax' => '',
-      'Phone' => $customer->field_te_telefonnummer->value,
-      'EMail' => $customer->mail->value,
+      'Phone' => 'TEST Telefon',
+      'EMail' => 'TEST E-Mail',
       'WWWAdress' => '',
       'Country' => [
-        'Caption' => $address['country_code'],
+        'Caption' => 'ch',
       ],
       'PrimaryContact' => [
-        'FirstName' => $address['given_name'],
-        'Surname' => $address['family_name'],
+        'FirstName' => 'TEST Vorame',
+        'Surname' => 'TEST Name',
       ],
     ];
     $order_data['CustomerAddress'] = $customer_address;
     $order_data['DeliveryAddress'] = $customer_address;
     $order_data['InvoiceAddress'] = $customer_address;
+    $order_data['Items'] = [
+      [
+        'ID' => '23940',
+        'Quantity' => 5,
+        'Price' => 23.5,
+      ],
+      [
+        'ID' => '50000',
+        'Quantity' => 5,
+        'Price' => 0,
+      ],
+    ];
 
-    $order_items = [];
-    foreach ($order->getItems() as $key => $item) {
-      $order_items[] = [
-        'ID' => $item->getPurchasedEntity()->field_te_main_number_easyjob->value,
-        'Quantity' => intval($item->getQuantity()),
-        'Price' => floatval(number_format($item->getUnitPrice()->getNumber(), 1)),
-      ];
-    }
-    $order_data['Items'] = $order_items;
-
-    // $data = '{"ID": "100000","ProjectName": "TEST - Projektname","StartDate": "2023-10-09T00:00:00","EndDate": "2023-10-11T00:00:00","CustomerComment": "TEST BESTELLUNG","PaymentAmount": 123.45,"PaymentMethod": "Kreditkarte","ProjectState": "0","Service": "0","CustomerAddress": {"Company": "TEST Firmenname","Name2": "TEST Firma Zusatz","Street": "TEST Straße","Street2": "TEST Adresszusatz","Zip": "TEST Postleitzahl","City": "TEST Ort","Fax": "TEST Faxnummer","Phone": "TEST Telefonnummer","EMail": "TEST E-Mail","WWWAdress": "TEST Webseite","Country": {"Caption": "TEST Land"},"PrimaryContact": {"FirstName": "TEST Vorname","Surname": "TEST Nachname"}},"DeliveryAddress": {"Company": "TEST Firmenname","Name2": "TEST Firma Zusatz","Street": "TEST Straße","Street2": "TEST Adresszusatz","Zip": "TEST Postleitzahl","City": "TEST Ort","Fax": "TEST Faxnummer","Phone": "TEST Telefonnummer","EMail": "TEST E-Mail","WWWAdress": "TEST Webseite","Country": {"Caption": "TEST Land"},"PrimaryContact": {"FirstName": "TEST Vorname","Surname": "TEST Nachname"}},"InvoiceAddress": {"Company": "TEST Firmenname","Name2": "TEST Firma Zusatz","Street": "TEST Straße","Street2": "TEST Adresszusatz","Zip": "TEST Postleitzahl","City": "TEST Ort","Fax": "TEST Faxnummer","Phone": "TEST Telefonnummer","EMail": "TEST E-Mail","WWWAdress": "TEST Webseite","Country": {"Caption": "TEST Land"},"PrimaryContact": {"FirstName": "TEST Vorname","Surname": "TEST Nachname"}},"Items": [{"ID": "23940","Quantity": 5,"Price": 23.5},{"ID": "50000","Quantity": 5,"Price": 0}]}';
-    // $array = json_decode($data, TRUE);
-    // $project = $this->easyjob->createProject($array);
     $project_ids = $this->easyjob->createProject($order_data);
     return new JsonResponse(
       [
@@ -157,13 +181,16 @@ class TestController extends ControllerBase {
   }
 
   /**
-   *
+   * Retrieve product categories.
    */
   public function checkCategories() {
     $array = $this->easyjob->getShortListProducts();
     $categories = [];
-    foreach ($array as $key => $product) {
-      if (in_array($product['Category'], $categories[$product['CategoryParent']])) {
+    foreach ($array as $product) {
+      if (!isset($categories[$product['CategoryParent']])) {
+        $categories[$product['CategoryParent']] = [];
+      }
+      if (!in_array($product['Category'], $categories[$product['CategoryParent']])) {
         $categories[$product['CategoryParent']][] = $product['Category'];
       }
     }
