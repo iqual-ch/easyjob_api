@@ -2,14 +2,14 @@
 
 namespace Drupal\easyjob_api\Service;
 
-use GuzzleHttp\Exception\GuzzleException;
 use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Http\ClientFactory;
 use Drupal\Core\Logger\LoggerChannelFactory;
-use Symfony\Component\HttpFoundation\RequestStack;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
+use GuzzleHttp\Exception\GuzzleException;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * An interface with Easyjob allowing GET and POST operations.
@@ -20,35 +20,35 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
 
   use StringTranslationTrait;
 
-  public const TOKEN_ENDPOINT = '/token';
+  final public const TOKEN_ENDPOINT = '/token';
 
-  public const WEBSETTINGS_ENDPOINT = '/api.json/Common/GetWebSettings/';
+  final public const WEBSETTINGS_ENDPOINT = '/api.json/Common/GetWebSettings/';
 
-  public const SHORTLIST_PRODUCT_ENDPOINT = '/api.json/Items/List/';
+  final public const SHORTLIST_PRODUCT_ENDPOINT = '/api.json/Items/List/';
 
-  public const EDITED_SINCE_ENDPOINT = '/api.json/custom/itemlist/?editedsince=';
+  final public const EDITED_SINCE_ENDPOINT = '/api.json/custom/itemlist/?editedsince=';
 
-  public const AVAILABILITY_ENDPOINT = '/api.json/Custom/CalculateItem/';
+  final public const AVAILABILITY_ENDPOINT = '/api.json/Custom/CalculateItem/';
 
-  public const SINGLE_PRODUCT_ENDPOINT = '/api.json/custom/itemdetails/';
+  final public const SINGLE_PRODUCT_ENDPOINT = '/api.json/custom/itemdetails/';
 
-  public const SINGLE_FILE_ENDPOINT = '/shortcuts/download/';
+  final public const SINGLE_FILE_ENDPOINT = '/shortcuts/download/';
 
-  public const CREATE_PROJECT_ENDPOINT = '/api.json/custom/CreateProject/';
+  final public const CREATE_PROJECT_ENDPOINT = '/api.json/custom/CreateProject/';
 
-  public const GET_PROJECT_ENDPOINT = '/api.json/Projects/Details/';
+  final public const GET_PROJECT_ENDPOINT = '/api.json/Projects/Details/';
 
-  public const GET_JOB_ENDPOINT = '/api.json/Jobs/Details/';
+  final public const GET_JOB_ENDPOINT = '/api.json/Jobs/Details/';
 
-  public const PARENT_CATEGORY_PARAM = 'IdCategoryParent';
+  final public const PARENT_CATEGORY_PARAM = 'IdCategoryParent';
 
-  public const CATEGORY_PARAM = 'IdCategory';
+  final public const CATEGORY_PARAM = 'IdCategory';
 
-  public const STARTDATE_PARAM = 'startdate';
+  final public const STARTDATE_PARAM = 'startdate';
 
-  public const FINISHDATE_PARAM = 'enddate';
+  final public const FINISHDATE_PARAM = 'enddate';
 
-  public const QUANTITY_PARAM = 'quantity';
+  final public const QUANTITY_PARAM = 'quantity';
 
   /**
    * The entity type manager.
@@ -175,7 +175,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
       // Get token, hydrate service.
       $msg = 'token retrieved from easyjob, connecting...';
       $this->loggerChannelFactory->get('easyjob_api')->notice($msg);
-      $data = json_decode($response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
+      $data = json_decode((string) $response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
 
       $this->token = $data['access_token'];
       $this->httpClient = $this->httpClientFactory->fromOptions([
@@ -202,7 +202,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
     if ($response && $response->getStatusCode() == '200') {
       $msg = 'Successfully loaded user settings';
       $this->loggerChannelFactory->get('easyjob_api')->notice($msg);
-      $data = json_decode($response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
+      $data = json_decode((string) $response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
       return $data;
     }
     return FALSE;
@@ -221,7 +221,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
     if ($response && $response->getStatusCode() == '200') {
       $msg = 'Succesfully retrieved products ids';
       $this->loggerChannelFactory->get('easyjob_api')->notice($msg);
-      $data = json_decode($response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
+      $data = json_decode((string) $response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
       return $data;
     }
     return FALSE;
@@ -240,7 +240,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
     if ($response && $response->getStatusCode() == '200') {
       $msg = 'Succesfully retrieved products ids';
       $this->loggerChannelFactory->get('easyjob_api')->notice($msg);
-      $data = json_decode($response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
+      $data = json_decode((string) $response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
       return $data;
     }
     return FALSE;
@@ -255,7 +255,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
     }
     $response = $this->sendRequest('GET', self::SINGLE_PRODUCT_ENDPOINT . $product_id);
     if ($response && $response->getStatusCode() == '200') {
-      $data = json_decode($response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
+      $data = json_decode((string) $response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
       return $data;
     }
     return FALSE;
@@ -274,7 +274,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
       $stream = $response->getBody();
       $file_data = $stream->read($content_length);
       $data = [
-        'filename' => str_replace('attachment;filename=', '', $response->getHeader('content-disposition')[0]),
+        'filename' => str_replace('attachment;filename=', '', (string) $response->getHeader('content-disposition')[0]),
         'content' => $file_data,
       ];
       return $data;
@@ -295,7 +295,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
     foreach ($product_ids as $row) {
       $response = $this->sendRequest('GET', self::SINGLE_PRODUCT_ENDPOINT . $row['ID']);
       if ($response && $response->getStatusCode() == '200') {
-        $data = json_decode($response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
+        $data = json_decode((string) $response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
         $products[] = $data;
       }
     }
@@ -326,7 +326,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
       self::QUANTITY_PARAM . '=' . $args['quantity']
     );
     if ($response && $response->getStatusCode() == '200') {
-      $data = json_decode($response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
+      $data = json_decode((string) $response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
       return $data;
     }
 
@@ -351,7 +351,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
       $args,
     );
     if ($response && $response->getStatusCode() == '200') {
-      $data = json_decode($response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
+      $data = json_decode((string) $response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
       return $data;
     }
     else {
@@ -373,7 +373,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
       self::GET_PROJECT_ENDPOINT . $id,
     );
     if ($response && $response->getStatusCode() == '200') {
-      $data = json_decode($response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
+      $data = json_decode((string) $response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
       return $data;
     }
     else {
@@ -395,7 +395,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
       self::GET_JOB_ENDPOINT . $id
     );
     if ($response && $response->getStatusCode() == '200') {
-      $data = json_decode($response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
+      $data = json_decode((string) $response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
       return $data;
     }
     else {
