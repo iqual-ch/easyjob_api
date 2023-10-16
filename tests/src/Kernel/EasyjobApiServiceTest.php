@@ -6,10 +6,8 @@ use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Core\DependencyInjection\ServiceModifierInterface;
 use Drupal\KernelTests\KernelTestBase;
 use GuzzleHttp\Client;
-use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
-use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 
 /**
@@ -18,6 +16,14 @@ use GuzzleHttp\Psr7\Response;
  * @group easyjob_api
  */
 class EasyjobApiServiceTest extends KernelTestBase implements ServiceModifierInterface {
+
+  private const TOKEN_RESPONSE = '{
+    "access_token": "dummy-token-_AQAAANCMnd8BFdERjHoAwE_dummy-test-token-a8-8HJyBISw",
+    "token_type": "bearer",
+    "expires_in": 172799
+  }';
+
+  private const SECOND_RESPONSE = '[[ID: 10309';
 
   /**
    * {@inheritdoc}
@@ -30,6 +36,13 @@ class EasyjobApiServiceTest extends KernelTestBase implements ServiceModifierInt
    * @var Drupal\Tests\easyjob_api\Kernel\TestEasyjobApiService
    */
   protected $easyjobApiService;
+
+  /**
+   * The mock Handler.
+   *
+   * @var GuzzleHttp\Handler\MockHandler
+   */
+  protected $mockHandler;
 
   /**
    * {@inheritdoc}
@@ -50,23 +63,24 @@ class EasyjobApiServiceTest extends KernelTestBase implements ServiceModifierInt
     $config->set('password', 'testpass');
     $config->save();
 
-    $mock = new MockHandler([
-      new Response(200, ['X-Foo' => 'Bar'], 'Hello, World'),
-      new Response(202, ['Content-Length' => 0]),
-      new RequestException('Error Communicating with Server', new Request('GET', 'test'))
+    $this->mockHandler = new MockHandler([
+      new Response(200, ['X-Foo' => 'Bar'], self::TOKEN_RESPONSE),
     ]);
-    $handler_stack = HandlerStack::create($mock);
+    $handler_stack = HandlerStack::create($this->mockHandler);
     $client = new Client(['handler' => $handler_stack]);
     $this->easyjobApiService = $this->container->get('easyjob_api.client');
     $this->easyjobApiService->setClient($client);
+    $this->easyjobApiService->getToken();
   }
 
   /**
-   * Test something.
+   * Test on 404 Not Found response.
    */
-  public function testGetWebsettings() {
-    // Mock and assign a new client for each test.
-    self::assertTrue(TRUE);
+  public function testGetWebsettingsOn404NotFound() {
+    $this->mockHandler->reset();
+    $this->mockHandler->append(new Response(404));
+    $response = $this->easyjobApiService->getWebSettings();
+    self::assertFalse($response);
   }
 
 }
