@@ -5,7 +5,7 @@ easyjob_api.settings:
     base_url:
       type: string
       label: 'Base url'
-    user:
+    username:
       type: string
       label: 'User'
     password:
