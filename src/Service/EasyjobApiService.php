@@ -270,7 +270,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
     }
     $response = $this->sendRequest('GET', self::SINGLE_FILE_ENDPOINT . $file_id);
     if ($response && $response->getStatusCode() == '200') {
-      $content_length = $response->getHeader('Content-Length')[0];
+      $content_length = (int) $response->getHeader('Content-Length')[0];
       $stream = $response->getBody();
       $file_data = $stream->read($content_length);
       $data = [
