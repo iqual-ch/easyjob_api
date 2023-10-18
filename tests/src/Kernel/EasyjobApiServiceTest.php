@@ -31,6 +31,8 @@ class EasyjobApiServiceTest extends KernelTestBase implements ServiceModifierInt
 
   private const PRODUCT_AVAILABILITY_FOR_PERIOD_RESPONSE = '{"MinAvail":80,"Price":0.00}';
 
+  private const CREATE_PROJECT_RESPONSE = '{"IdJob":111148,"IdAddressCustomer":84565,"IdAddressDelivery":84565,"ErrorMessage":null}';
+
   /**
    * {@inheritdoc}
    */
@@ -299,6 +301,106 @@ class EasyjobApiServiceTest extends KernelTestBase implements ServiceModifierInt
     $this->assertArrayHasKey('Price', $response);
     $this->assertEquals($response['MinAvail'], 80);
     $this->assertEquals($response['Price'], 0);
+  }
+
+  /**
+   * Test createProject status code non 200.
+   */
+  public function testCreateProjectNon200StatusCode() {
+    $this->expectException(\Exception::class);
+    $responses = [new Response(404)];
+    $this->setUpClient($responses);
+    $order_data['Items'] = [
+      [
+        'ID' => '10309',
+        'Quantity' => 5,
+        'Price' => 0,
+      ],
+      [
+        'ID' => '10312',
+        'Quantity' => 5,
+        'Price' => 0,
+      ],
+    ];
+    $this->easyjobApiService->createProject($order_data);
+  }
+
+  /**
+   * Test createProject no data provided.
+   */
+  public function testCreateProjectNoDataProvided() {
+    $this->expectException(\Exception::class);
+    $this->setUpClient([]);
+    $this->easyjobApiService->createProject([]);
+  }
+
+  /**
+   * Test createProject.
+   */
+  public function testCreateProject() {
+    $responses = [
+      new Response(200, [], self::CREATE_PROJECT_RESPONSE),
+    ];
+    $this->setUpClient($responses);
+
+    $startDate = date('Y-m-d\TH:i:s', strtotime('+1 year'));
+    $endDate = date('Y-m-d\TH:i:s', strtotime('+1 year +1 day'));
+    $order_data = [
+      'ID' => '100000',
+      'ProjectName' => 'TEST - Projektname',
+      'StartDate' => $startDate,
+      'EndDate' => $endDate,
+      'CustomerComment' => 'TEST BESTELLUNG',
+      'PaymentAmount' => 123.45,
+      'PaymentMethod' => 'Kreditkarte',
+      'ProjectState' => '0',
+      'Service' => '0',
+    ];
+
+    $customer_address = [
+      'Company' => 'TEST Firmenname',
+      'Name2' => 'TEST Firma Zusatz',
+      'Street' => 'TEST Straße',
+      'Street2' => 'TEST Adresse Zusatz',
+      'Zip' => 'TEST Zip',
+      'City' => 'TEST City',
+      'Fax' => '',
+      'Phone' => 'TEST Telefon',
+      'EMail' => 'TEST E-Mail',
+      'WWWAdress' => '',
+      'Country' => [
+        'Caption' => 'ch',
+      ],
+      'PrimaryContact' => [
+        'FirstName' => 'TEST Vorame',
+        'Surname' => 'TEST Name',
+      ],
+    ];
+    $order_data['CustomerAddress'] = $customer_address;
+    $order_data['DeliveryAddress'] = $customer_address;
+    $order_data['InvoiceAddress'] = $customer_address;
+    $order_data['Items'] = [
+      [
+        'ID' => '10309',
+        'Quantity' => 5,
+        'Price' => 0,
+      ],
+      [
+        'ID' => '10312',
+        'Quantity' => 5,
+        'Price' => 0,
+      ],
+    ];
+
+    $project_ids = $this->easyjobApiService->createProject($order_data);
+    $this->assertIsArray($project_ids);
+    $this->assertCount(4, $project_ids);
+    $this->assertArrayHasKey('IdJob', $project_ids);
+    $this->assertArrayHasKey('IdAddressCustomer', $project_ids);
+    $this->assertArrayHasKey('IdAddressDelivery', $project_ids);
+    $this->assertArrayHasKey('ErrorMessage', $project_ids);
+    $this->assertEquals($project_ids['IdAddressCustomer'], 84565);
+    $this->assertNull($project_ids['ErrorMessage']);
   }
 
 }
