@@ -33,6 +33,10 @@ class EasyjobApiServiceTest extends KernelTestBase implements ServiceModifierInt
 
   private const CREATE_PROJECT_RESPONSE = '{"IdJob":111148,"IdAddressCustomer":84565,"IdAddressDelivery":84565,"ErrorMessage":null}';
 
+  private const GET_PROJECT_RESPONSE = '{"TeamsTeamID":"","TeamsChannelID":"","AllowHeadEdit":true,"AllowDocumentView":true,"AllowTimeCardView":false,"AllowPriceView":true,"AllowActivityView":false,"AllowJobAdd":true,"AllowCostplanView":true,"AllowDashboardView":false,"HtmlColor":"#FCCAB8","CurrencySymbol":"CHF","IdProject":85989,"Number":"23-6741","CustomNumber":"","Caption":"TEST - Projektname","ProjectState":{"ID":3,"IdProjectState":3,"Caption":"Abgesagt","Color":-210248},"StartDate":"2024-10-18T21:07:00","EndDate":"2024-10-19T21:07:00","Address_Customer":{"ID":84565,"IdAddress":84565,"Number":"1079330.00","Company":"TEST Firmenname","FirstName":"TEST Vorame","Surname":"TEST Name","Street":"TEST Straße","Street2":"TEST Adresse Zusatz","Zip":"TEST Zip","City":"TEST City","Phone":"TEST Telefon","PhoneCompany":"","Fax":"","EMail":"TEST E-Mail","WWWAdress":"","Country":null,"PrimaryContact":{"ID":91618,"IdContact":91618,"Surname":"TEST Name","FirstName":"TEST Vorame","Phone":"","Fax":"","Mobile":"","Email":"","PhonePrivate":""},"Name2":"TEST Firma "},"Contact_Customer":null,"Jobs":{},"Stock":{},"Arranger":{},"Comment":"Test comment","ID":"85989"}';
+
+  private const GET_JOB_RESPONSE = '{"AllowHeadEdit":true,"AllowItemView":true,"AllowItemEdit":true,"AllowResourceView":false,"AllowResourceEdit":false,"AllowResourceAllocationView":false,"AllowFixedCostView":true,"AllowFixedCostEdit":false,"AllowPriceView":true,"AllowActivityView":false,"AllowCostplanView":true,"AllowCostplanEdit":false,"DeliveryNoteSignUrl":null,"AllowStaffTimeRecoring":false,"AllowEditFreeLines":false,"HtmlColor":"#FCCAB8","CurrencySymbol":"CHF","IdJob":111148,"Project":{"IdProject":85989,"ID":85989},"Number":"23-6741.01","CustomNumber":"","Caption":"TEST - Projektname","JobState":{"ID":3,"IdJobState":3,"Caption":"Abgesagt","Color":-210248,"IdJobType":1},"DayTimeOut":"2024-10-18T21:07:00","DayTimeIn":"2024-10-19T21:07:00","Address_Delivery":{"ID":84565,"IdAddress":84565,"Number":"1079330.00","Company":"TEST Firmenname","FirstName":"TEST Vorame","Surname":"TEST Name","Street":"TEST Straße","Street2":"TEST Adresse Zusatz","Zip":"TEST Zip","City":"TEST City","Phone":"TEST Telefon","PhoneCompany":"","Fax":"","EMail":"TEST E-Mai"},"Contact_Delivery":{},"Stock":{},"DeliveryAddressNote":"","Arranger":{},"Comment":"","ID":"111148"}';
+
   /**
    * {@inheritdoc}
    */
@@ -401,6 +405,92 @@ class EasyjobApiServiceTest extends KernelTestBase implements ServiceModifierInt
     $this->assertArrayHasKey('ErrorMessage', $project_ids);
     $this->assertEquals($project_ids['IdAddressCustomer'], 84565);
     $this->assertNull($project_ids['ErrorMessage']);
+  }
+
+  /**
+   * Test getProject no project id.
+   */
+  public function testGetProjectNoProjectId() {
+    $this->expectException(\Exception::class);
+    $this->setUpClient([]);
+    $this->easyjobApiService->getProject(NULL);
+  }
+
+  /**
+   * Test getProject status code non 200.
+   */
+  public function testGetProjectNon200StatusCode() {
+    $this->expectException(\Exception::class);
+    $responses = [
+      new Response(501),
+    ];
+    $this->setUpClient($responses);
+    $this->easyjobApiService->getProject('3334');
+  }
+
+  /**
+   * Test getProject.
+   */
+  public function testGetProject() {
+    $responses = [
+      new Response(200, [], self::GET_PROJECT_RESPONSE),
+    ];
+    $this->setUpClient($responses);
+    $response = $this->easyjobApiService->getProject('85989');
+    $this->assertIsArray($response);
+    $this->assertIsArray($response['ProjectState']);
+    $this->assertIsArray($response['Address_Customer']);
+    $this->assertNull($response['Contact_Customer']);
+    $this->assertIsArray($response['Stock']);
+    $this->assertIsArray($response['Arranger']);
+    $this->assertArrayHasKey('Number', $response);
+    $this->assertArrayHasKey('ID', $response);
+    $this->assertArrayHasKey('Comment', $response);
+    $this->assertArrayHasKey('IdProject', $response);
+    $this->assertArrayHasKey('Number', $response);
+    $this->assertEquals($response['Number'], "23-6741");
+  }
+
+  /**
+   * Test getJob no job id.
+   */
+  public function testGetJobNoJobId() {
+    $this->expectException(\Exception::class);
+    $this->setUpClient([]);
+    $this->easyjobApiService->getJob(NULL);
+  }
+
+  /**
+   * Test getJob status code non 200.
+   */
+  public function testGetJobNon200StatusCode() {
+    $this->expectException(\Exception::class);
+    $this->setUpClient([new Response(300)]);
+    $this->easyjobApiService->getJob('111148');
+  }
+
+  /**
+   * Test getJob.
+   */
+  public function testGetJob() {
+    $responses = [
+      new Response(200, [], self::GET_JOB_RESPONSE),
+    ];
+    $this->setUpClient($responses);
+    $response = $this->easyjobApiService->getJob('111148');
+    $this->assertIsArray($response);
+    $this->assertCount(32, $response);
+    $this->assertArrayHasKey('Number', $response);
+    $this->assertArrayHasKey('JobState', $response);
+    $this->assertArrayHasKey('ID', $response);
+    $this->assertIsArray($response['Project']);
+    $this->assertIsArray($response['JobState']);
+    $this->assertArrayHasKey('ID', $response['JobState']);
+    $this->assertArrayHasKey('IdJobState', $response['JobState']);
+    $this->assertArrayHasKey('Caption', $response['JobState']);
+    $this->assertIsArray($response['Address_Delivery']);
+    $this->assertIsArray($response['Stock']);
+    $this->assertIsArray($response['Arranger']);
   }
 
 }
