@@ -314,6 +314,7 @@ class EasyjobApiServiceTest extends KernelTestBase implements ServiceModifierInt
     $this->expectException(\Exception::class);
     $responses = [new Response(404)];
     $this->setUpClient($responses);
+    $order_data = [];
     $order_data['Items'] = [
       [
         'ID' => '10309',
