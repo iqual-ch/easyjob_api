@@ -2,6 +2,7 @@
 
 namespace Drupal\Tests\easyjob_api\Kernel;
 
+use Drupal\Component\Serialization\Json;
 use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Core\DependencyInjection\ServiceModifierInterface;
 use Drupal\KernelTests\KernelTestBase;
@@ -241,7 +242,7 @@ class EasyjobApiServiceTest extends KernelTestBase implements ServiceModifierInt
       new Response(403, [], str_replace('10309', '10312', self::SINGLE_PRODUCT_DETAILS_RESPONSE)),
     ];
     $this->setUpClient($responses);
-    $product_ids = json_decode(self::PRODUCTS_EDITED_SINCE_RESPONSE, TRUE);
+    $product_ids = Json::decode(self::PRODUCTS_EDITED_SINCE_RESPONSE);
     $response = $this->easyjobApiService->getProductsDetail($product_ids);
     $this->assertEmpty($response);
   }
@@ -255,7 +256,7 @@ class EasyjobApiServiceTest extends KernelTestBase implements ServiceModifierInt
       new Response(200, [], str_replace('10309', '10312', self::SINGLE_PRODUCT_DETAILS_RESPONSE)),
     ];
     $this->setUpClient($responses);
-    $product_ids = json_decode(self::PRODUCTS_EDITED_SINCE_RESPONSE, TRUE);
+    $product_ids = Json::decode(self::PRODUCTS_EDITED_SINCE_RESPONSE);
     $response = $this->easyjobApiService->getProductsDetail($product_ids);
     $this->assertIsArray($response);
     $this->assertEquals(count($response), 2);
