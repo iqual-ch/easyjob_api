@@ -429,7 +429,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
         ['@response' => $error->getMessage()]
           );
       // Log the error.
-      $this->loggerChannelFactory->get('easyjob_api')->error('Remote API Connection', [], $message);
+      $this->loggerChannelFactory->get('easyjob_api')->error('Remote API Connection error: ' . $message, []);
     }
     /*
      * A non-Guzzle error occurred. T
@@ -437,7 +437,16 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
      */
     catch (\Exception $error) {
       // Log the error.
-      $this->loggerChannelFactory->get('easyjob_api')->error('Remote API Connection', [], $this->t('An unknown error occurred while trying to connect to the remote API. This is not a Guzzle error, nor an error in the remote API, rather a generic local error ocurred. The reported error was @error', ['@error' => $error->getMessage()]));
+      $this->loggerChannelFactory->get('easyjob_api')->error(
+        'Remote API Connection error: ' .
+        $this->t(
+          'An unknown error occurred while trying to connect to the remote API. This is not a Guzzle error, nor an error in the remote API, rather a generic local error ocurred. The reported error was @error',
+          [
+            '@error' => $error->getMessage()
+          ]
+        ),
+        []
+      );
     }
     return FALSE;
   }
