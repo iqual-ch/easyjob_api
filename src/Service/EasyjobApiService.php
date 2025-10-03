@@ -126,8 +126,8 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
     ConfigFactoryInterface $config_factory,
     RequestStack $request_stack,
     ClientFactory $httpClientFactory,
-    LoggerChannelFactory $loggerChannelFactory
-    ) {
+    LoggerChannelFactory $loggerChannelFactory,
+  ) {
     $this->entityTypeManager = $entity_type_manager;
     $this->request = $request_stack->getCurrentRequest();
     $this->config = $config_factory->get('easyjob_api.settings');
@@ -442,7 +442,7 @@ class EasyjobApiService implements EasyjobApiServiceInterface {
         $this->t(
           'An unknown error occurred while trying to connect to the remote API. This is not a Guzzle error, nor an error in the remote API, rather a generic local error ocurred. The reported error was @error',
           [
-            '@error' => $error->getMessage()
+            '@error' => $error->getMessage(),
           ]
         ),
         []
